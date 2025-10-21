@@ -28,7 +28,7 @@ class MongoDB:
         
         try:
             # Create SSL context that bypasses certificate verification
-            print("🔄 Connecting to MongoDB Atlas...")
+            print("Connecting to MongoDB Atlas...")
             
             # Create custom SSL context to bypass certificate validation
             ssl_context = ssl.create_default_context(cafile=certifi.where())
@@ -48,7 +48,7 @@ class MongoDB:
             
             # Test the connection
             self.client.admin.command('ping')
-            print("✅ Successfully connected to MongoDB!")
+            print("Successfully connected to MongoDB!")
             self.connected = True
             
             # Get database and collection
@@ -58,8 +58,8 @@ class MongoDB:
         except Exception as e:
             print(f"❌ Failed to connect to MongoDB: {e}")
             print("\n⚠️  Windows SSL/TLS compatibility issue detected!")
-            print("💡 App will run WITHOUT database persistence")
-            print("📝 Stories will NOT be saved, but generation will work!")
+            print("App will run WITHOUT database persistence")
+            print("Stories will NOT be saved, but generation will work!")
             print("\n🔧 To fix MongoDB connection:")
             print("   1. Use MongoDB Compass (supports Windows SSL)")
             print("   2. Or run app in WSL/Linux/Mac")
@@ -78,7 +78,7 @@ class MongoDB:
             The saved story with MongoDB _id
         """
         if not self.connected:
-            print("⚠️  MongoDB not connected - story not saved")
+            print("MongoDB not connected - story not saved")
             return story
             
         try:
@@ -90,7 +90,7 @@ class MongoDB:
             result = self.stories.insert_one(story)
             story["_id"] = str(result.inserted_id)
             
-            print(f"✅ Story saved with ID: {story['_id']}")
+            print(f"Story saved with ID: {story['_id']}")
             return story
             
         except OperationFailure as e:
@@ -105,7 +105,7 @@ class MongoDB:
             List of all stories
         """
         if not self.connected:
-            print("⚠️  MongoDB not connected - returning empty list")
+            print("MongoDB not connected - returning empty list")
             return []
             
         try:
@@ -116,7 +116,7 @@ class MongoDB:
             for story in stories:
                 story["_id"] = str(story["_id"])
             
-            print(f"✅ Retrieved {len(stories)} stories")
+            print(f"Retrieved {len(stories)} stories")
             return stories
             
         except OperationFailure as e:
@@ -177,7 +177,7 @@ class MongoDB:
         """Close MongoDB connection"""
         if self.client:
             self.client.close()
-            print("✅ MongoDB connection closed")
+            print("MongoDB connection closed")
 
 # Create a singleton instance
 mongodb = MongoDB()

@@ -96,7 +96,7 @@ class StorytellerAgent:
                 previous_context += f"\nTitle: {story['title']}\n{story['content'][:200]}...\n"
         
     # Create comprehensive storyteller prompt
-        system_prompt = """You are a master children's storyteller who creates magical, engaging stories for kids aged 5-14 years old.
+        system_prompt = """You are a master children's storyteller who creates magical, engaging stories for kids aged 5-10 years old.
 
 Your storytelling style:
 - Warm, engaging, and imaginative
@@ -165,7 +165,7 @@ STORY: [Your complete story here]"""
             HumanMessage(content=user_prompt)
         ]
         
-        print(f"🤖 Storyteller Agent: Creating story for '{prompt}'...")
+        print(f"Storyteller Agent: Creating story for '{prompt}'...")
         response = self._invoke_with_fallback(messages)
         
         # Parse the response to extract title and story
@@ -237,7 +237,7 @@ STORY: [improved story content]"""
             HumanMessage(content=user_prompt)
         ]
         
-        print(f"🤖 Storyteller Agent: Refining story based on feedback...")
+        print(f"Storyteller Agent: Refining story based on feedback...")
         response = self._invoke_with_fallback(messages)
         
         return self._parse_story_response(response.content)
@@ -301,7 +301,7 @@ class JudgeAgent:
         self.max_tokens = 800
         self.llm = None
         
-        print("✅ Judge Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
+        print("Judge Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
 
     def _invoke_with_fallback(self, messages):
         last_err = None
@@ -370,7 +370,7 @@ FEEDBACK: [specific suggestions for improvement if not approved, or praise if ap
             HumanMessage(content=user_prompt)
         ]
         
-        print(f"👨‍⚖️ Judge Agent: Evaluating story '{title}'...")
+        print(f"Judge Agent: Evaluating story '{title}'...")
         response = self._invoke_with_fallback(messages)
         
         # Parse the judge's response

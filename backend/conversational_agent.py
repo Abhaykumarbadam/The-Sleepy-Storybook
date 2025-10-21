@@ -51,7 +51,7 @@ class ConversationalAgent:
             'abuse', 'kidnap', 'steal', 'crime', 'prison', 'jail'
         ]
         
-        print("✅ Conversational Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
+        print("Conversational Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
 
     def _invoke_with_fallback(self, messages):
         last_err = None
@@ -106,7 +106,7 @@ class ConversationalAgent:
         age_match = re.search(age_pattern, message.lower())
         if age_match:
             ctx['age'] = int(age_match.group(1))
-            print(f"📝 Learned user's age: {ctx['age']}")
+            print(f"Learned user's age: {ctx['age']}")
     
     def is_inappropriate_content(self, message: str) -> bool:
         """Check if message contains inappropriate content for children"""

@@ -63,14 +63,14 @@ judge = JudgeAgent(
 class ConversationRequest(BaseModel):
     """Request model for conversational messages"""
     message: str  # User's message
-    conversation_history: Optional[List[dict]] = []  # Previous messages
+    conversation_history: Optional[List[dict]] = []  
     session_id: Optional[str] = None
 
 class StoryRequest(BaseModel):
     """Request model for generating a new story"""
-    prompt: str  # What the user wants the story to be about
-    lengthType: Literal["short", "medium", "long"] = "medium"  # Story length
-    conversation_history: Optional[List[dict]] = []  # For context
+    prompt: str  
+    lengthType: Literal["short", "medium", "long"] = "medium"  
+    conversation_history: Optional[List[dict]] = []  
     session_id: Optional[str] = None
 
 
@@ -142,7 +142,7 @@ def build_structure_feedback(length_type: str) -> str:
         )
 
 
-# ===== API ENDPOINTS =====
+#API ENDPOINTS 
 
 @app.get("/")
 async def root():
@@ -201,7 +201,7 @@ async def chat(request: ConversationRequest):
         dict: Response with type, message, and whether to generate story
     """
     try:
-        print(f"💬 Chat message: '{request.message}'")
+        print(f"Chat message: '{request.message}'")
         
         # Process message through conversational agent
         result = conversational_agent.process_message(
@@ -245,13 +245,13 @@ async def generate_story(request: StoryRequest):
         dict: Success status and generated story data
     """
     try:
-        print(f"📖 Generating story for prompt: '{request.prompt}' (length: {request.lengthType})")
+        print(f"Generating story for prompt: '{request.prompt}' (length: {request.lengthType})")
         
         # Step 1: Get previous stories for context from MongoDB
         # This helps maintain consistent tone and style across stories
         all_stories = mongodb.get_all_stories(session_id=request.session_id)
         previous_stories = all_stories[-3:] if len(all_stories) > 0 else []
-        print(f"📚 Found {len(previous_stories)} previous stories for context")
+        print(f"Found {len(previous_stories)} previous stories for context")
         
         # Step 2: Define word count targets based on selected length
         word_count_map = {
@@ -268,7 +268,7 @@ async def generate_story(request: StoryRequest):
         max_iterations = 5
         final_feedback = None
         
-        print(f"🔄 Starting iterative refinement (max {max_iterations} iterations)")
+        print(f"Starting iterative refinement (max {max_iterations} iterations)")
         
         while iterations < max_iterations:
             iterations += 1
@@ -294,12 +294,12 @@ async def generate_story(request: StoryRequest):
             
             current_title = result["title"]
             current_story = result["content"]
-            print(f"✍️  Story created: '{current_title}' ({len(current_story.split())} words)")
+            print(f"Story created: '{current_title}' ({len(current_story.split())} words)")
             # Enforce paragraph structure before judging
             need_paras = 2 if request.lengthType == "short" else 3
             actual_paras = count_paragraphs(current_story)
             if actual_paras != need_paras:
-                print(f"🧩 Paragraph structure mismatch: need {need_paras}, got {actual_paras}. Requesting reformat...")
+                print(f"Paragraph structure mismatch: need {need_paras}, got {actual_paras}. Requesting reformat...")
                 structure_feedback = build_structure_feedback(request.lengthType)
                 reform = storyteller.refine_story(
                     title=current_title,
@@ -311,7 +311,7 @@ async def generate_story(request: StoryRequest):
                 current_story = reform["content"]
                 # Recount after reformat
                 actual_paras = count_paragraphs(current_story)
-                print(f"📐 After reformat, paragraphs: {actual_paras}")
+                print(f"After reformat, paragraphs: {actual_paras}")
             
             # Evaluate story quality using Judge Agent
             evaluation = judge.evaluate_story(
@@ -335,13 +335,13 @@ async def generate_story(request: StoryRequest):
             )
             
             if evaluation["score"] >= 9 and all_metrics_good:
-                print(f"✅ Story approved after {iterations} iteration(s)!")
+                print(f"Story approved after {iterations} iteration(s)!")
                 break
             else:
-                print(f"🔄 Story needs refinement. Feedback: {evaluation['feedback'][:100]}...")
+                print(f"Story needs refinement. Feedback: {evaluation['feedback'][:100]}...")
         
         # Step 4: Save story to local JSON file
-        print("\n💾 Saving story to local storage...")
+        print("\nSaving story to local storage...")
         # Sanitize content/title before saving
         clean_title = sanitize_text(current_title)
         clean_content = sanitize_text(current_story)
@@ -359,7 +359,7 @@ async def generate_story(request: StoryRequest):
         }
         
         saved_story = mongodb.save_story(story_data)
-        print(f"✅ Story saved with ID: {saved_story.get('_id', 'unknown')}")
+        print(f"Story saved with ID: {saved_story.get('_id', 'unknown')}")
         
         # Step 6: Return success response
         return {
@@ -434,10 +434,10 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     
     print(f"""
-    🌙 ===== Bedtime Story API =====
-    📡 Server starting on http://{host}:{port}
-    📖 API Docs: http://{host}:{port}/docs
-    🔍 Health Check: http://{host}:{port}/
+     ===== Bedtime Story API =====
+     Server starting on http://{host}:{port}
+     API Docs: http://{host}:{port}/docs
+     Health Check: http://{host}:{port}/
     ================================
     """)
     
