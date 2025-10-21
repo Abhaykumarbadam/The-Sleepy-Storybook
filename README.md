@@ -59,5 +59,3 @@ Open: `http://localhost:5173`
 - **Backend:** Python + FastAPI + LangChain + Groq API
 - **Database:** MongoDB Atlas (cloud storage)
 
-## 📚 Full Documentation
-See [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) for complete details.
