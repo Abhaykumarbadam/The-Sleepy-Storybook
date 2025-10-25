@@ -136,9 +136,9 @@ export async function generateStory(
 
     const data = await response.json();
     
-    // Normalize MongoDB _id to id for frontend compatibility
+    // Normalize storage ID to standard 'id' field for frontend compatibility
     if (data.story) {
-      data.story.id = data.story._id || data.story.id || '';
+      data.story.id = data.story.id || '';
     }
     
     return data;
@@ -149,7 +149,7 @@ export async function generateStory(
 }
 
 /**
- * Get previous stories from MongoDB
+ * Get previous stories from storage
  */
 export async function getPreviousStories(limit: number = 10, sessionId?: string): Promise<Story[]> {
   try {
@@ -165,10 +165,10 @@ export async function getPreviousStories(limit: number = 10, sessionId?: string)
     const data = await response.json();
     const stories = data.stories || [];
     
-    // Normalize MongoDB _id to id for frontend compatibility
+    // Normalize storage ID to standard 'id' field for frontend compatibility
     return stories.map((story: any) => ({
       ...story,
-      id: story._id || story.id || ''
+      id: story.id || ''
     }));
   } catch (error) {
     console.error('Error fetching stories:', error);
@@ -190,11 +190,11 @@ export async function getStoryById(storyId: string): Promise<Story | null> {
     const data = await response.json();
     const story = data.story;
     
-    // Normalize MongoDB _id to id for frontend compatibility
+    // Normalize storage ID to standard 'id' field for frontend compatibility
     if (story) {
       return {
         ...story,
-        id: story._id || story.id || ''
+        id: story.id || ''
       };
     }
     return null;

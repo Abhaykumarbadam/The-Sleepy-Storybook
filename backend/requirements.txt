@@ -9,14 +9,6 @@ langchain-groq==0.2.5  # Latest stable 0.2.x version
 langchain-core>=0.3.25  # Required by langchain 0.3.12
 langsmith==0.2.4
 
-# Database
-pymongo[srv]==4.10.1  # [srv] includes dnspython for MongoDB Atlas
-certifi>=2023.7.22  # SSL certificate bundle for MongoDB Atlas
-
-# Image Generation (removed - using Pollinations.AI in frontend)
-# stability-sdk==0.8.6
-# Pillow==11.0.0
-
 # Environment & Utils
 python-dotenv==1.0.1
 pydantic==2.10.3
@@ -25,6 +17,6 @@ pydantic-settings==2.6.1
 # Text-to-Speech
 gTTS==2.5.3
 
-# CORS
-# python-cors
-#==1.0.0
+# Core LangGraph
+langgraph>=0.2.0
+langgraph-checkpoint>=1.0.0

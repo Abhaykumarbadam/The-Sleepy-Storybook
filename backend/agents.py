@@ -12,6 +12,8 @@ from typing import Dict, List, Optional
 import os
 import re
 
+from config.prompts import StorytellerPrompts, JudgePrompts
+
 
 class StorytellerAgent:
     """
@@ -95,6 +97,10 @@ class StorytellerAgent:
             for story in previous_stories:
                 previous_context += f"\nTitle: {story['title']}\n{story['content'][:200]}...\n"
         
+<<<<<<< HEAD
+        # Get system prompt from prompts module
+        system_prompt = StorytellerPrompts.get_system_prompt()
+=======
     # Create comprehensive storyteller prompt
         system_prompt = """You are a master children's storyteller who creates magical, engaging stories for kids aged 5-10 years old.
 
@@ -106,58 +112,15 @@ Your storytelling style:
 - Includes positive messages and gentle life lessons
 - Perfect for reading aloud or bedtime
 - Always appropriate and safe for children"""
+>>>>>>> 26a5d2ebad458da54fce988cb217f6b14760e564
         
-        # Paragraph structure requirements based on length type
-        structure = ""
-        if length_type == "short":
-            structure = (
-                "\n\nSTRUCTURE (IMPORTANT):\n"
-                "- Write the story in EXACTLY 2 paragraphs.\n"
-                "  1) Introduction (setup characters and setting)\n"
-                "  2) Conclusion (resolve and state the gentle moral)\n"
-                "- Separate paragraphs with a single blank line.\n"
-            )
-        else:
-            structure = (
-                "\n\nSTRUCTURE (IMPORTANT):\n"
-                "- Write the story in EXACTLY 3 paragraphs.\n"
-                "  1) Introduction (setup characters and setting)\n"
-                "  2) Extension/Development (the adventure or challenge grows)\n"
-                "  3) Conclusion (resolution and gentle moral)\n"
-                "- Separate paragraphs with a single blank line.\n"
-            )
-
-        # Create detailed user prompt with all requirements
-        user_prompt = f"""Create a wonderful story based on this idea: "{prompt}"
-
-📖 STORY REQUIREMENTS:
-✓ Word count: {target_word_count} words
-✓ Age range: 5-14 years old
-✓ Language: Simple, clear, easy to understand
-✓ Tone: Warm, friendly, and encouraging
-✓ Content: 100% child-appropriate (no violence, scary content, or adult themes)
-
-✨ STORY ELEMENTS TO INCLUDE:
-- A catchy, short title (3-7 words)
-- Engaging characters children can relate to
-- A clear beginning, middle, and end
-- Exciting but safe adventures
-- A gentle moral or positive lesson (kindness, courage, friendship, honesty, etc.)
-- Descriptive language that sparks imagination
-- Dialogue that feels natural and fun
-
-🎨 STORYTELLING TIPS:
-- Make it fun and engaging to read
-- Use sensory details (sounds, colors, feelings)
-- Keep sentences short and clear
-- Include moments of excitement or wonder
-- End on a positive, satisfying note
-- Make it memorable!{previous_context}
-{structure}
-
-📝 FORMAT (IMPORTANT):
-TITLE: [Your creative story title]
-STORY: [Your complete story here]"""
+        # Get user prompt from prompts module
+        user_prompt = StorytellerPrompts.get_story_creation_prompt(
+            prompt=prompt,
+            target_word_count=target_word_count,
+            length_type=length_type,
+            previous_context=previous_context
+        )
         
         # Send messages to the LLM
         messages = [
@@ -189,48 +152,13 @@ STORY: [Your complete story here]"""
         Returns:
             Dict with improved 'title' and 'content'
         """
-        system_prompt = """You are a master children's storyteller who creates magical, engaging stories for kids aged 5-14 years old.
-You excel at taking feedback and improving stories while keeping what makes them special."""
-        
-        # Structure guidance for revision if provided
-        structure = ""
-        if length_type:
-            if length_type == "short":
-                structure = (
-                    "\n\nSTRUCTURE (KEEP THIS):\n"
-                    "- Keep EXACTLY 2 paragraphs: Introduction, then Conclusion.\n"
-                    "- Separate paragraphs with a single blank line.\n"
-                )
-            else:
-                structure = (
-                    "\n\nSTRUCTURE (KEEP THIS):\n"
-                    "- Keep EXACTLY 3 paragraphs: Introduction, Extension/Development, Conclusion.\n"
-                    "- Separate paragraphs with a single blank line.\n"
-                )
-
-        user_prompt = f"""The story needs improvement based on this feedback:
-
-{feedback}
-
-📝 YOUR TASK:
-Revise the story to address the feedback while keeping the core idea and what makes it special.
-
-CURRENT STORY:
-TITLE: {title}
-STORY: {content}
-
-GUIDELINES FOR REVISION:
-- Fix any issues mentioned in feedback
-- Keep the story fun and engaging
-- Maintain child-appropriate language (ages 5-14)
-- Ensure the moral/lesson is clear but not preachy
-- Keep the magical feeling of the story
-- Make improvements without changing the main idea
-{structure}
-
-FORMAT YOUR RESPONSE:
-TITLE: [improved story title]
-STORY: [improved story content]"""
+        system_prompt = StorytellerPrompts.get_refinement_system_prompt()
+        user_prompt = StorytellerPrompts.get_refinement_prompt(
+            title=title,
+            content=content,
+            feedback=feedback,
+            length_type=length_type
+        )
         
         messages = [
             SystemMessage(content=system_prompt),
@@ -344,26 +272,8 @@ class JudgeAgent:
                 'feedback': str
             }
         """
-        system_prompt = "You are a children's content quality judge."
-        
-        user_prompt = f"""Evaluate this bedtime story for ages 5-10.
-
-Story Title: {title}
-Story Content:
-{content}
-
-Evaluate this story on:
-1. Clarity (1-10): Is the language simple and clear for 5-10 year olds?
-2. Moral Value (1-10): Does it teach a gentle, positive lesson?
-3. Age Appropriateness (1-10): Is it suitable and engaging for the target age?
-
-Provide your evaluation in this exact format:
-CLARITY: [score]
-MORAL: [score]
-AGE_APPROPRIATE: [score]
-OVERALL: [score out of 10]
-APPROVED: [YES or NO]
-FEEDBACK: [specific suggestions for improvement if not approved, or praise if approved]"""
+        system_prompt = JudgePrompts.get_system_prompt()
+        user_prompt = JudgePrompts.get_evaluation_prompt(title=title, content=content)
         
         messages = [
             SystemMessage(content=system_prompt),
