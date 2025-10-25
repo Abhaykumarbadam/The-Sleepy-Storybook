@@ -153,7 +153,6 @@ The-Sleepy-Storybook/
 
 ## 🛠️ Tech Stack
 
-<<<<<<< HEAD
 | Layer | Technologies |
 |-------|-------------|
 |   Frontend   | React, TypeScript, Tailwind CSS, Vite |
@@ -216,5 +215,4 @@ py -3.12 -m pip install -U "langgraph-cli[inmem]"
 
 
   Happy Storytelling! 📚✨  
-=======
->>>>>>> 26a5d2ebad458da54fce988cb217f6b14760e564
+
