@@ -164,8 +164,6 @@ The-Sleepy-Storybook/
 |   TTS   | gTTS (Google Text-to-Speech) |
 
 ## � Documentation
-
--   [SETUP_GUIDE.md](./SETUP_GUIDE.md)   - Comprehensive setup and troubleshooting
 -   [backend/README.md](./backend/README.md)   - Backend architecture details
 -   API Docs   - Interactive Swagger docs at `/docs` when server is running
 
