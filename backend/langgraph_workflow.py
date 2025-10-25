@@ -33,10 +33,6 @@ from config import settings
 logger = setup_logger(__name__)
 
 
-# ============================================================================
-# STATE DEFINITIONS
-# ============================================================================
-
 class ConversationState(TypedDict):
     """
     State for conversational interaction phase.
@@ -44,22 +40,15 @@ class ConversationState(TypedDict):
     Tracks user messages, extracted preferences, and determines if story
     generation should be triggered.
     """
-    # Messages
     messages: Annotated[list[BaseMessage], operator.add]
     user_message: str
     agent_response: str
-    
-    # User Context
     session_id: str
     user_name: Optional[str]
     user_age: Optional[int]
-    
-    # Story Request Detection
     should_generate_story: bool
     story_prompt: Optional[str]
     story_length: Literal["short", "medium", "long"]
-    
-    # Navigation
     next_step: Literal["continue_chat", "generate_story", "end"]
 
 
@@ -70,39 +59,24 @@ class StoryGenerationState(TypedDict):
     Implements a reflection pattern where the story is created, evaluated,
     and refined until it meets quality standards or max iterations reached.
     """
-    # Input
     prompt: str
     length_type: Literal["short", "medium", "long"]
     session_id: str
-    
-    # Story Content
     story_title: str
     story_content: str
-    
-    # Quality Control
     iteration: int
     max_iterations: int
     evaluation_feedback: str
-    quality_scores: Dict[str, int]  # clarity, moral_value, age_appropriate
+    quality_scores: Dict[str, int]
     overall_score: int
     approved: bool
-    
-    # Paragraph Structure
     target_paragraphs: int
     actual_paragraphs: int
     structure_correct: bool
-    
-    # History & Output
     revision_history: Annotated[list[dict], operator.add]
     final_story: Optional[Dict]
-    
-    # Navigation
     next_step: Literal["evaluate", "refine", "format_paragraphs", "finalize", "end"]
 
-
-# ============================================================================
-# CONVERSATION NODES
-# ============================================================================
 
 class ConversationNode:
     """

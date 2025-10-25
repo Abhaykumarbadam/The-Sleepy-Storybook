@@ -13,7 +13,6 @@ from api.routes import conversation_router, stories_router, audio_router
 from config import settings
 from utils import setup_logger
 
-# Setup logging
 logger = setup_logger(__name__)
 
 
@@ -24,14 +23,12 @@ def create_application() -> FastAPI:
     Returns:
         Configured FastAPI application instance
     """
-    # Initialize FastAPI application
     app = FastAPI(
         title="Bedtime Story API",
         description="AI-powered storytelling for children",
         version="2.0.0"
     )
     
-    # Configure CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.server.CORS_ORIGINS,
@@ -40,7 +37,6 @@ def create_application() -> FastAPI:
         allow_headers=settings.server.CORS_ALLOW_HEADERS,
     )
     
-    # Include routers
     app.include_router(conversation_router)
     app.include_router(stories_router)
     app.include_router(audio_router)
@@ -48,11 +44,8 @@ def create_application() -> FastAPI:
     return app
 
 
-# Create application instance
 app = create_application()
 
-
-# ===== Root Endpoint =====
 
 @app.get("/")
 async def root():
@@ -86,8 +79,6 @@ async def health_check():
     }
 
 
-# ===== Application Startup/Shutdown Events =====
-
 @app.on_event("startup")
 async def startup_event():
     """Initialize resources on application startup."""
@@ -105,34 +96,23 @@ async def shutdown_event():
     logger.info("✅ Cleanup complete")
 
 
-# ===== Main Entry Point =====
-
 if __name__ == "__main__":
     import uvicorn
     
-    # Get configuration from settings
     host = settings.server.HOST
     port = settings.server.PORT
     debug = settings.server.DEBUG
     
     print(f"""
-<<<<<<< HEAD
     🌙 ===== Bedtime Story API =====
     📡 Server: http://{host}:{port}
     📖 API Docs: http://{host}:{port}/docs
     🔍 Health: http://{host}:{port}/health
     🔧 Debug: {debug}
     🎯 Max Iterations: {settings.story.MAX_ITERATIONS}
-=======
-     ===== Bedtime Story API =====
-     Server starting on http://{host}:{port}
-     API Docs: http://{host}:{port}/docs
-     Health Check: http://{host}:{port}/
->>>>>>> 26a5d2ebad458da54fce988cb217f6b14760e564
     ================================
     """)
     
-    # Run server
     uvicorn.run(
         "main:app",
         host=host,

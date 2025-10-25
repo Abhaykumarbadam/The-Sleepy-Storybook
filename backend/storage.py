@@ -183,8 +183,6 @@ class JSONStorage:
             print(f"❌ Failed to delete story: {e}")
             return False
     
-    # ==================== CONVERSATION OPERATIONS ====================
-    
     def save_conversation(self, session_id: str, messages: List[Dict], user_name: Optional[str] = None) -> bool:
         """
         Save or update a conversation
@@ -204,7 +202,6 @@ class JSONStorage:
         try:
             conversations = self._read_file(self.conversations_file)
             
-            # Find existing conversation or create new
             conversation = None
             for i, conv in enumerate(conversations):
                 if conv.get("session_id") == session_id:
@@ -213,7 +210,6 @@ class JSONStorage:
                     break
             
             if conversation:
-                # Update existing
                 conversation["messages"] = messages
                 conversation["updated_at"] = datetime.utcnow().isoformat()
                 if user_name:
@@ -221,7 +217,6 @@ class JSONStorage:
                 conversations[conversation_index] = conversation
                 action = "updated"
             else:
-                # Create new
                 conversation = {
                     "_id": str(uuid.uuid4()),
                     "session_id": session_id,
@@ -319,8 +314,6 @@ class JSONStorage:
             print(f"❌ Failed to delete conversation: {e}")
             return False
     
-    # ==================== UTILITY OPERATIONS ====================
-    
     def health_check(self) -> Dict:
         """
         Check storage health
@@ -382,5 +375,4 @@ class JSONStorage:
         print("✅ JSON Storage closed")
 
 
-# Create a singleton instance
 storage = JSONStorage()

@@ -22,15 +22,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from config.prompts import ConversationalPrompts
 
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
 @dataclass
 class AgentConfig:
     """Configuration constants for the conversational agent."""
     
-    # Model Configuration
     DEFAULT_MODELS: List[str] = field(default_factory=lambda: [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
@@ -38,25 +33,13 @@ class AgentConfig:
     ])
     TEMPERATURE: float = 0.7
     MAX_TOKENS: int = 500
-    
-    # Age Range
     MIN_AGE: int = 5
     MAX_AGE: int = 14
-    
-    # Context History
     MAX_CONVERSATION_HISTORY: int = 4
     MAX_CONTEXT_ANALYSIS_HISTORY: int = 8
-    
-    # Session Configuration
     DEFAULT_SESSION_ID: str = "default"
-    
-    # LangSmith Configuration
     LANGSMITH_PROJECT_DEFAULT: str = "bedtime-stories"
 
-
-# ============================================================================
-# MAIN AGENT CLASS
-# ============================================================================
 
 class ConversationalAgent:
     """
@@ -105,22 +88,11 @@ class ConversationalAgent:
         """
         self.config = config or AgentConfig()
         self.groq_api_key = groq_api_key
-        
-        # Initialize LangSmith tracing if API key provided
         self._setup_langsmith_tracing(langsmith_api_key)
-        
-        # Configure LLM models
         self.model_candidates = self._load_model_candidates()
         self.llm = None
-        
-        # Session management: stores context per session
         self.sessions: Dict[str, Dict[str, any]] = {}
-        
         self._log_initialization()
-    
-    # ------------------------------------------------------------------------
-    # INITIALIZATION HELPERS
-    # ------------------------------------------------------------------------
     
     def _setup_langsmith_tracing(self, api_key: Optional[str]) -> None:
         """
@@ -166,10 +138,6 @@ class ConversationalAgent:
             f"{', '.join(self.model_candidates)}"
         )
     
-    # ------------------------------------------------------------------------
-    # SESSION MANAGEMENT
-    # ------------------------------------------------------------------------
-    
     def _get_session(self, session_id: Optional[str] = None) -> Dict[str, any]:
         """
         Retrieve or create a session context.
@@ -194,10 +162,6 @@ class ConversationalAgent:
         
         return self.sessions[sid]
     
-    # ------------------------------------------------------------------------
-    # LLM INVOCATION
-    # ------------------------------------------------------------------------
-    
     def _invoke_with_fallback(
         self, 
         messages: List, 
@@ -221,10 +185,8 @@ class ConversationalAgent:
         """
         last_error = None
         
-        # Try each model in sequence
         for attempt, model_name in enumerate(self.model_candidates, 1):
             try:
-                # Initialize model
                 self.llm = ChatGroq(
                     model=model_name,
                     api_key=self.groq_api_key,
@@ -232,8 +194,6 @@ class ConversationalAgent:
                     max_tokens=self.config.MAX_TOKENS
                 )
                 
-                # Simple invoke without per-call tracing
-                # Tracing is handled at the session level by the route
                 return self.llm.invoke(messages)
                     
             except Exception as e:
@@ -242,7 +202,6 @@ class ConversationalAgent:
                 
                 print(f"⚠️ Model '{model_name}' failed (attempt {attempt}/{len(self.model_candidates)}): {e}")
                 
-                # Determine if we should retry with next model
                 is_retryable = any(
                     keyword in error_msg 
                     for keyword in ["rate limit", "429", "decommission", "invalid", "token"]

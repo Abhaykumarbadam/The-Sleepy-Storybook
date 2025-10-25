@@ -131,18 +131,16 @@ export default function StoryEditor({ story, imagePrompt, onBackToChat }: StoryE
       return;
     } catch (err) {
       console.error('❌ Backend TTS failed, falling back to browser TTS:', err);
-      // Fall through to browser speech synthesis fallback
     }
 
-    // Fallback: Use browser's built-in speech synthesis
     if (!window.speechSynthesis) {
       alert('Sorry, text-to-speech is not available in your browser.');
       return;
     }
 
     const utterance = new SpeechSynthesisUtterance(sanitizedContent);
-    utterance.rate = 0.85; // Slightly slower for children
-    utterance.pitch = 1.1; // Slightly higher pitch
+    utterance.rate = 0.85;
+    utterance.pitch = 1.1;
     utterance.volume = 1;
 
     utterance.onend = () => {
@@ -158,15 +156,12 @@ export default function StoryEditor({ story, imagePrompt, onBackToChat }: StoryE
     setIsPlaying(true);
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Cleanup audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
-      // Cleanup speech synthesis
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -179,9 +174,7 @@ export default function StoryEditor({ story, imagePrompt, onBackToChat }: StoryE
       animate={{ opacity: 1, y: 0 }}
       className="flex gap-6 max-w-7xl mx-auto h-full"
     >
-      {/* Left Side - Story Content */}
-  <div className="flex-1 bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 transition-colors">
-        {/* Back to Chat Button */}
+      <div className="flex-1 bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 transition-colors">
         {onBackToChat && (
           <motion.button
             onClick={onBackToChat}
