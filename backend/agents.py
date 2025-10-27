@@ -97,22 +97,8 @@ class StorytellerAgent:
             for story in previous_stories:
                 previous_context += f"\nTitle: {story['title']}\n{story['content'][:200]}...\n"
         
-<<<<<<< HEAD
         # Get system prompt from prompts module
         system_prompt = StorytellerPrompts.get_system_prompt()
-=======
-    # Create comprehensive storyteller prompt
-        system_prompt = """You are a master children's storyteller who creates magical, engaging stories for kids aged 5-10 years old.
-
-Your storytelling style:
-- Warm, engaging, and imaginative
-- Uses simple, clear language that kids understand
-- Creates relatable characters children love
-- Builds exciting but age-appropriate adventures
-- Includes positive messages and gentle life lessons
-- Perfect for reading aloud or bedtime
-- Always appropriate and safe for children"""
->>>>>>> 26a5d2ebad458da54fce988cb217f6b14760e564
         
         # Get user prompt from prompts module
         user_prompt = StorytellerPrompts.get_story_creation_prompt(
