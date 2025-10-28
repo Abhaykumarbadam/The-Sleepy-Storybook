@@ -4,6 +4,10 @@ AI Agents Module - Storyteller and Judge Agents using LangChain + Groq
 This module implements the two-agent system:
 1. Storyteller Agent - Creates bedtime stories for children
 2. Judge Agent - Evaluates story quality and provides feedback
+
+Integrated with:
+- LangSmith: For development tracing and debugging
+- Opik: For LLM performance evaluation and metrics
 """
 
 from langchain_groq import ChatGroq
@@ -11,8 +15,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from typing import Dict, List, Optional
 import os
 import re
+import time
 
 from config.prompts import StorytellerPrompts, JudgePrompts
+from opik_config import log_llm_call, get_opik_tracer
 
 
 class StorytellerAgent:
@@ -44,22 +50,66 @@ class StorytellerAgent:
             "mixtral-8x7b-32768"
         ]
         self.temperature = 0.8
-        self.max_tokens = 1800
-        self.llm = None  # will be created per attempt
+        # Reduce max tokens to lower generation cost and output length
+        self.max_tokens = 700
+        
+        # ✅ FIX: Create LLM instance once and reuse it (avoid recreation waste)
+        self.llm = ChatGroq(
+            api_key=self.groq_api_key,
+            model=self.model_candidates[0],  # Start with first model
+            temperature=self.temperature,
+            max_tokens=self.max_tokens
+        )
+        self.current_model = self.model_candidates[0]
         
         print("Storyteller Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
 
-    def _invoke_with_fallback(self, messages):
+    def _invoke_with_fallback(self, messages, agent_name="storyteller"):
+        """Invoke LLM with fallback and Opik tracking"""
         last_err = None
         for model in self.model_candidates:
             try:
-                self.llm = ChatGroq(
-                    api_key=self.groq_api_key,
-                    model=model,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens
+                # Start timing for latency tracking
+                start_time = time.time()
+                
+                # ✅ FIX: Only recreate LLM if model changed (avoid waste)
+                if model != self.current_model:
+                    print(f"🔄 Switching to model: {model}")
+                    self.llm = ChatGroq(
+                        api_key=self.groq_api_key,
+                        model=model,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens
+                    )
+                    self.current_model = model
+                
+                # Get Opik tracer for automatic LangChain integration
+                opik_tracer = get_opik_tracer()
+                config = {"callbacks": [opik_tracer]} if opik_tracer else {}
+                
+                # Invoke with Opik tracing
+                response = self.llm.invoke(messages, config=config)
+                
+                # Calculate latency
+                latency_ms = (time.time() - start_time) * 1000
+                
+                # Log to Opik for performance tracking
+                log_llm_call(
+                    model_name=model,
+                    prompt=str(messages),
+                    completion=response.content,
+                    latency_ms=latency_ms,
+                    input_tokens=getattr(response, 'usage', {}).get('prompt_tokens'),
+                    output_tokens=getattr(response, 'usage', {}).get('completion_tokens'),
+                    metadata={
+                        "agent": agent_name,
+                        "temperature": self.temperature,
+                        "max_tokens": self.max_tokens
+                    }
                 )
-                return self.llm.invoke(messages)
+                
+                return response
+                
             except Exception as e:
                 msg = str(e).lower()
                 last_err = e
@@ -212,22 +262,66 @@ class JudgeAgent:
             "mixtral-8x7b-32768"
         ]
         self.temperature = 0.3
-        self.max_tokens = 800
-        self.llm = None
+        # Reduce judge output size
+        self.max_tokens = 300
+        
+        # ✅ FIX: Create LLM instance once and reuse it (avoid recreation waste)
+        self.llm = ChatGroq(
+            api_key=self.groq_api_key,
+            model=self.model_candidates[0],  # Start with first model
+            temperature=self.temperature,
+            max_tokens=self.max_tokens
+        )
+        self.current_model = self.model_candidates[0]
         
         print("Judge Agent initialized (Groq) with model fallback:", ", ".join(self.model_candidates))
 
     def _invoke_with_fallback(self, messages):
+        """Invoke LLM with fallback and Opik tracking"""
         last_err = None
         for model in self.model_candidates:
             try:
-                self.llm = ChatGroq(
-                    api_key=self.groq_api_key,
-                    model=model,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens
+                # Start timing for latency tracking
+                start_time = time.time()
+                
+                # ✅ FIX: Only recreate LLM if model changed (avoid waste)
+                if model != self.current_model:
+                    print(f"🔄 Judge switching to model: {model}")
+                    self.llm = ChatGroq(
+                        api_key=self.groq_api_key,
+                        model=model,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens
+                    )
+                    self.current_model = model
+                
+                # Get Opik tracer for automatic LangChain integration
+                opik_tracer = get_opik_tracer()
+                config = {"callbacks": [opik_tracer]} if opik_tracer else {}
+                
+                # Invoke with Opik tracing
+                response = self.llm.invoke(messages, config=config)
+                
+                # Calculate latency
+                latency_ms = (time.time() - start_time) * 1000
+                
+                # Log to Opik for performance tracking
+                log_llm_call(
+                    model_name=model,
+                    prompt=str(messages),
+                    completion=response.content,
+                    latency_ms=latency_ms,
+                    input_tokens=getattr(response, 'usage', {}).get('prompt_tokens'),
+                    output_tokens=getattr(response, 'usage', {}).get('completion_tokens'),
+                    metadata={
+                        "agent": "judge",
+                        "temperature": self.temperature,
+                        "max_tokens": self.max_tokens
+                    }
                 )
-                return self.llm.invoke(messages)
+                
+                return response
+                
             except Exception as e:
                 msg = str(e).lower()
                 last_err = e

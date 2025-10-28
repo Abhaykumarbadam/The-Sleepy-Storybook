@@ -102,7 +102,7 @@ export async function sendChatMessage(
  */
 export async function generateStory(
   prompt: string,
-  lengthType: 'short' | 'medium' | 'long' = 'medium',
+  lengthType: 'short' | 'medium' | 'long' = 'short',
   conversationHistory: Array<{ role: string; content: string }> = [],
   sessionId?: string,
 ): Promise<StoryResponse> {

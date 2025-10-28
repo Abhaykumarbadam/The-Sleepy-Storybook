@@ -40,6 +40,31 @@ def validate_prompt(prompt: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
+def compress_prompt_to_keywords(prompt: str, max_words: int = 12) -> str:
+    """
+    Compress a potentially long prompt into a short keyword-style phrase.
+
+    Strategy: keep only the first N words after sanitization. This keeps intent
+    while ensuring we stay under word limits and reduce token usage.
+
+    Args:
+        prompt: Original prompt text
+        max_words: Maximum number of words to keep (default: 12)
+
+    Returns:
+        Compressed prompt string
+    """
+    if not prompt:
+        return ""
+
+    # Normalize spaces and split into words
+    words = prompt.strip().split()
+    if len(words) <= max_words:
+        return " ".join(words)
+
+    return " ".join(words[:max_words])
+
+
 def validate_message(message: str) -> Tuple[bool, Optional[str]]:
     """
     Validate conversational message input.

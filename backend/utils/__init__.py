@@ -14,6 +14,7 @@ from .validation import (
     validate_session_id,
     validate_name,
     sanitize_input,
+    compress_prompt_to_keywords,
     validate_story_content,
     validate_title
 )
@@ -56,6 +57,7 @@ __all__ = [
     'validate_session_id',
     'validate_name',
     'sanitize_input',
+    'compress_prompt_to_keywords',
     'validate_story_content',
     'validate_title',
     

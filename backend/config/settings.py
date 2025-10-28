@@ -45,7 +45,7 @@ class LLMConfig:
     
     # Storyteller Configuration
     STORYTELLER_TEMPERATURE: float = 0.8
-    STORYTELLER_MAX_TOKENS: int = 1800
+    STORYTELLER_MAX_TOKENS: int = 700
     STORYTELLER_MODELS: Optional[List[str]] = field(default_factory=lambda: (
         [m.strip() for m in os.getenv("GROQ_MODEL_STORYTELLER", "").split(",") if m.strip()]
         or None
@@ -53,7 +53,7 @@ class LLMConfig:
     
     # Judge Configuration  
     JUDGE_TEMPERATURE: float = 0.3
-    JUDGE_MAX_TOKENS: int = 800
+    JUDGE_MAX_TOKENS: int = 300
     JUDGE_MODELS: Optional[List[str]] = field(default_factory=lambda: (
         [m.strip() for m in os.getenv("GROQ_MODEL_JUDGE", "").split(",") if m.strip()]
         or None
@@ -61,7 +61,7 @@ class LLMConfig:
     
     # Conversational Agent Configuration
     CONVERSATION_TEMPERATURE: float = 0.7
-    CONVERSATION_MAX_TOKENS: int = 500
+    CONVERSATION_MAX_TOKENS: int = 300
     CONVERSATION_MODELS: Optional[List[str]] = field(default_factory=lambda: (
         [m.strip() for m in os.getenv("GROQ_MODEL_CONVERSATION", "").split(",") if m.strip()]
         or None
@@ -126,9 +126,9 @@ class StoryConfig:
     
     # Word Count Targets
     WORD_COUNTS: dict = field(default_factory=lambda: {
-        "short": {"min": 250, "max": 350, "target": "300"},
-        "medium": {"min": 400, "max": 450, "target": "400-450"},
-        "long": {"min": 500, "max": 550, "target": "550"}
+        "short": {"min": 150, "max": 220, "target": "180"},
+        "medium": {"min": 250, "max": 320, "target": "300"},
+        "long": {"min": 350, "max": 420, "target": "400"}
     })
     
     # Story Generation

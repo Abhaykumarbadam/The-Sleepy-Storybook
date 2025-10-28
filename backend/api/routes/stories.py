@@ -19,7 +19,8 @@ from utils import (
     validate_prompt, 
     sanitize_input,
     count_paragraphs,
-    setup_logger
+    setup_logger,
+    compress_prompt_to_keywords,
 )
 from config import settings, HTTPStatus, APIMessages
 
@@ -33,7 +34,7 @@ router = APIRouter(prefix="/api", tags=["stories"])
 class StoryRequest(BaseModel):
     """Request model for generating a new story."""
     prompt: str
-    lengthType: Literal["short", "medium", "long"] = "medium"
+    lengthType: Literal["short", "medium", "long"] = "short"
     conversation_history: Optional[List[dict]] = []
     session_id: Optional[str] = None
 
@@ -94,20 +95,41 @@ async def generate_story(
         dict: Success status and generated story data
     """
     try:
-        # Validate input
-        is_valid, error_message = validate_prompt(request.prompt)
-        if not is_valid:
-            logger.warning(f"❌ Invalid prompt: {error_message}")
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=error_message
-            )
-        
         # Sanitize input
         clean_prompt = sanitize_input(request.prompt)
+        
+        # Extract length override from MODIFY_STORY requests
+        length_override = None
+        if "LENGTH:" in clean_prompt:
+            lines = clean_prompt.split('\n')
+            for line in lines:
+                if line.strip().startswith("LENGTH:"):
+                    extracted_length = line.replace("LENGTH:", "").strip().lower()
+                    if extracted_length in ["short", "medium", "long"]:
+                        length_override = extracted_length
+                        logger.info(f"📏 Length override detected: {length_override}")
+                    break
+        
+        # Use length override if found, otherwise use request.lengthType
+        final_length = length_override or request.lengthType
+        
+        # Only compress if it's NOT a modification request (which contains PREVIOUS_STORY)
+        if "MODIFY_STORY:" not in clean_prompt and "PREVIOUS_STORY:" not in clean_prompt:
+            clean_prompt = compress_prompt_to_keywords(clean_prompt, max_words=12)
+
+        # Validate prompt (skip validation for modification requests as they can be longer)
+        if "MODIFY_STORY:" not in clean_prompt and "PREVIOUS_STORY:" not in clean_prompt:
+            is_valid, error_message = validate_prompt(clean_prompt)
+            if not is_valid:
+                logger.warning(f"❌ Invalid prompt: {error_message}")
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_REQUEST,
+                    detail=error_message
+                )
+
         logger.info(
             f"📖 Generating story for prompt: '{clean_prompt[:50]}...' "
-            f"(length: {request.lengthType})"
+            f"(length: {final_length})"
         )
         
         # Check if LangSmith tracing is enabled
@@ -119,11 +141,11 @@ async def generate_story(
                 project_name=os.getenv("LANGCHAIN_PROJECT", "bedtime-stories")
             ):
                 return await _generate_story_internal(
-                    request, clean_prompt, storyteller, judge, db
+                    request, clean_prompt, storyteller, judge, db, final_length
                 )
         else:
             return await _generate_story_internal(
-                request, clean_prompt, storyteller, judge, db
+                request, clean_prompt, storyteller, judge, db, final_length
             )
         
     except HTTPException:
@@ -141,7 +163,8 @@ async def _generate_story_internal(
     clean_prompt: str,
     storyteller: StorytellerAgent,
     judge: JudgeAgent,
-    db
+    db,
+    final_length: str = None
 ) -> dict:
     """
     Internal story generation using LangGraph workflow.
@@ -178,7 +201,7 @@ async def _generate_story_internal(
     final_story = run_story_generation(
         graph=story_app,
         prompt=clean_prompt,
-        length_type=request.lengthType,
+        length_type=final_length or request.lengthType,
         session_id=request.session_id or "default"
     )
     

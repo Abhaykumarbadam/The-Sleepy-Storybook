@@ -7,6 +7,10 @@ This module implements a sophisticated multi-agent system using LangGraph that c
 3. **Judge Agent** - Evaluates and provides feedback for iterative improvement
 4. **Paragraph Formatter** - Ensures proper story structure
 
+Integrated with:
+- LangSmith: Development tracing and debugging
+- Opik: LLM performance evaluation and metrics
+
 The graph is fully visible in LangSmith Studio showing all agent nodes, state transitions,
 and decision points.
 
@@ -20,17 +24,40 @@ from typing import TypedDict, Annotated, Literal, Optional, List, Dict
 from dataclasses import dataclass
 import operator
 import os
+import time
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, BaseMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from pydantic import BaseModel, Field
 
 from conversational_agent import ConversationalAgent
 from agents import StorytellerAgent, JudgeAgent
 from utils import count_paragraphs, setup_logger
 from config import settings
+from opik_config import initialize_opik, log_story_evaluation, log_workflow_completion
 
 logger = setup_logger(__name__)
+
+initialize_opik(use_local=False)
+
+
+class ConversationInput(BaseModel):
+    """Input schema for conversation - only what user needs to provide"""
+    user_message: str = Field(..., description="The user's message or question")
+    session_id: str = Field(default="default", description="Session identifier for tracking")
+
+
+class StoryGenerationInput(BaseModel):
+    """
+    Input schema for story generation - DEMO MODE
+    Only 2 fields needed! Everything else auto-initialized.
+    """
+    prompt: str = Field(..., description="What the story should be about")
+    length_type: Literal["short", "medium", "long"] = Field(
+        default="short",
+        description="Story length: short (2 paragraphs), medium/long (3 paragraphs)"
+    )
 
 
 class ConversationState(TypedDict):
@@ -52,15 +79,21 @@ class ConversationState(TypedDict):
     next_step: Literal["continue_chat", "generate_story", "end"]
 
 
-class StoryGenerationState(TypedDict):
+class StoryGenerationState(TypedDict, total=False):
     """
     State for story generation phase with iterative refinement.
     
-    Implements a reflection pattern where the story is created, evaluated,
-    and refined until it meets quality standards or max iterations reached.
+    DEMO MODE: Only 2 fields shown in Studio input!
+    - prompt: Your story idea
+    - length_type: "short", "medium", or "long"
+    
+    All other fields are auto-initialized with defaults in the code.
     """
+    # User inputs (ONLY these 2 show in Studio!)
     prompt: str
     length_type: Literal["short", "medium", "long"]
+    
+    # Internal state (auto-initialized, not visible in Studio input)
     session_id: str
     story_title: str
     story_content: str
@@ -140,12 +173,15 @@ def route_after_conversation(state: ConversationState) -> Literal["generate_stor
 # STORY GENERATION NODES
 # ============================================================================
 
+
 class StoryCreatorNode:
     """
     Creates or refines stories based on iteration state.
     
     - First iteration: Creates initial story from prompt
     - Subsequent iterations: Refines story based on judge feedback
+    
+    Also handles automatic initialization of state fields on first call.
     """
     
     def __init__(self, storyteller: StorytellerAgent):
@@ -154,7 +190,14 @@ class StoryCreatorNode:
     def __call__(self, state: StoryGenerationState) -> StoryGenerationState:
         """Create or refine story"""
         
+        # Auto-initialize state fields if not present (transparent initialization)
         iteration = state.get("iteration", 1)
+        length_type = state.get("length_type", "short")
+        
+        # Initialize missing fields on first call
+        if iteration == 1 and not state.get("max_iterations"):
+            logger.info("🔧 Auto-initializing state fields")
+        
         is_refinement = iteration > 1
         
         if is_refinement:
@@ -192,7 +235,8 @@ class StoryCreatorNode:
             "paragraph_count": actual_paras
         }
         
-        return {
+        # Build updates dict
+        updates = {
             "story_title": result["title"],
             "story_content": result["content"],
             "actual_paragraphs": actual_paras,
@@ -201,6 +245,29 @@ class StoryCreatorNode:
             "revision_history": [revision_entry],
             "next_step": "evaluate"
         }
+        
+        # Auto-initialize ALL internal fields (happens transparently on first call)
+        # This allows Studio to only show prompt and length_type as inputs!
+        if "session_id" not in state:
+            updates["session_id"] = "demo-session"
+        if "iteration" not in state:
+            updates["iteration"] = 1
+        if "max_iterations" not in state:
+            updates["max_iterations"] = settings.story.MAX_ITERATIONS
+        if "quality_scores" not in state or not state.get("quality_scores"):
+            updates["quality_scores"] = {}
+        if "overall_score" not in state:
+            updates["overall_score"] = 0
+        if "approved" not in state:
+            updates["approved"] = False
+        if "evaluation_feedback" not in state:
+            updates["evaluation_feedback"] = ""
+        if "final_story" not in state:
+            updates["final_story"] = None
+        if "format_attempts" not in state:
+            updates["format_attempts"] = 0
+            
+        return updates
 
 
 class StoryEvaluatorNode:
@@ -240,11 +307,38 @@ class StoryEvaluatorNode:
             f"Approved={approved}"
         )
         
+        # Log evaluation to Opik for metrics tracking
+        quality_scores = {
+            "clarity": evaluation["clarity"],
+            "moral_value": evaluation["moralValue"],
+            "age_appropriateness": evaluation["ageAppropriateness"]
+        }
+        
+        log_story_evaluation(
+            story_title=state["story_title"],
+            story_content=state["story_content"],
+            quality_scores=quality_scores,
+            overall_score=evaluation["score"] * 10,  # Convert to 0-100 scale
+            iteration=state.get("iteration", 1),
+            approved=approved,
+            metadata={
+                "structure_correct": state["structure_correct"],
+                "target_paragraphs": state.get("target_paragraphs", 0),
+                "actual_paragraphs": state.get("actual_paragraphs", 0)
+            }
+        )
+        
         # Decide next step
         if approved and state["structure_correct"]:
             next_step = "finalize"
         elif not state["structure_correct"]:
-            next_step = "format_paragraphs"
+            # Safety: if we've tried formatting too many times, give up and finalize
+            format_attempts = state.get("format_attempts", 0)
+            if format_attempts >= 2:
+                logger.warning(f"⚠️ Gave up on paragraph formatting after {format_attempts} attempts")
+                next_step = "finalize"
+            else:
+                next_step = "format_paragraphs"
         elif state["iteration"] >= state["max_iterations"]:
             # Max iterations reached, finalize anyway
             next_step = "finalize"
@@ -252,11 +346,7 @@ class StoryEvaluatorNode:
             next_step = "refine"
         
         return {
-            "quality_scores": {
-                "clarity": evaluation["clarity"],
-                "moral_value": evaluation["moralValue"],
-                "age_appropriateness": evaluation["ageAppropriateness"]
-            },
+            "quality_scores": quality_scores,
             "overall_score": evaluation["score"],
             "evaluation_feedback": evaluation["feedback"],
             "approved": approved,
@@ -317,13 +407,17 @@ class ParagraphFormatterNode:
         actual_paras = count_paragraphs(result["content"])
         structure_correct = actual_paras == target
         
-        logger.info(f"📐 After formatting: {actual_paras} paragraphs")
+        # Track format attempts to prevent infinite loops
+        format_attempts = state.get("format_attempts", 0) + 1
+        
+        logger.info(f"📐 After formatting: {actual_paras} paragraphs (attempt {format_attempts})")
         
         return {
             "story_title": result["title"],
             "story_content": result["content"],
             "actual_paragraphs": actual_paras,
             "structure_correct": structure_correct,
+            "format_attempts": format_attempts,
             "next_step": "evaluate"
         }
 
@@ -351,16 +445,30 @@ class FinalizeStoryNode:
         logger.info("✅ Finalizing approved story")
         
         final_story = {
-            "title": state["story_title"],
-            "content": state["story_content"],
+            "title": state.get("story_title", ""),
+            "content": state.get("story_content", ""),
             "prompt": state["prompt"],
             "length_type": state["length_type"],
-            "iterations": state["iteration"],
-            "final_scores": state["quality_scores"],
-            "overall_score": state["overall_score"],
-            "paragraph_count": state["actual_paragraphs"],
+            "iterations": state.get("iteration", 1),
+            "final_scores": state.get("quality_scores", {}),
+            "overall_score": state.get("overall_score", 0),
+            "paragraph_count": state.get("actual_paragraphs", 0),
             "revision_history": state.get("revision_history", [])
         }
+        
+        # Log workflow completion to Opik
+        log_workflow_completion(
+            prompt=state["prompt"],
+            final_story=final_story,
+            total_iterations=state.get("iteration", 1),
+            total_time_seconds=0,  # Can be tracked if needed
+            llm_calls_count=state.get("iteration", 1) * 2,  # Estimate: 2 calls per iteration
+            metadata={
+                "length_type": state["length_type"],
+                "approved": state.get("approved", False),
+                "final_score": state.get("overall_score", 0)
+            }
+        )
         
         return {
             "final_story": final_story,
@@ -421,7 +529,7 @@ def create_story_generation_graph(
     Build the story generation graph with reflection pattern.
     
     Flow:
-    story_creator -> story_evaluator -> [decision]
+    initialize -> story_creator -> story_evaluator -> [decision]
     
     Decision branches:
     - If structure wrong -> format_paragraphs -> story_evaluator
@@ -444,7 +552,7 @@ def create_story_generation_graph(
     graph.add_node("increment_iteration", increment_iteration)
     graph.add_node("finalize_story", finalize_story)
     
-    # Set entry point
+    # Set entry point directly to story_creator (initialization happens transparently inside)
     graph.set_entry_point("story_creator")
     
     # Add edges
@@ -630,12 +738,7 @@ def get_conversation_graph():
     """
     Export conversation graph for LangGraph Server.
     
-    Usage in langgraph.json:
-    {
-      "graphs": {
-        "conversation": "langgraph_workflow:get_conversation_graph"
-      }
-    }
+    Users only need to provide: user_message (required), session_id (optional)
     """
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:
@@ -653,12 +756,8 @@ def get_story_generation_graph():
     """
     Export story generation graph for LangGraph Server.
     
-    Usage in langgraph.json:
-    {
-      "graphs": {
-        "story_generation": "langgraph_workflow:get_story_generation_graph"
-      }
-    }
+    The initialize node will automatically set default values for all internal fields.
+    Users only need to provide: prompt, length_type (optional), session_id (optional)
     """
     groq_api_key = os.getenv("GROQ_API_KEY")
     if not groq_api_key:

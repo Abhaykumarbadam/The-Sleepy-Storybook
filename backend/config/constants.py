@@ -86,7 +86,7 @@ class PromptPaths:
 class TextLimits:
     """Text processing limits."""
     
-    MAX_PROMPT_LENGTH = 500
+    MAX_PROMPT_LENGTH = 1500  # Increased for context-aware prompts
     MAX_MESSAGE_LENGTH = 1000
     MAX_TITLE_LENGTH = 100
     MAX_STORY_CONTENT_LENGTH = 10000

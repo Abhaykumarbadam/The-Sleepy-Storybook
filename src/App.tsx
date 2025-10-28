@@ -56,72 +56,10 @@ function App() {
       // First, send message to conversational agent
   const chatResponse = await sendChatMessage(userMessage, messages, sessionId);
       
-      // Detect if user is asking for a modification to the current story (force regeneration without questions)
-      const lower = userMessage.toLowerCase();
-      const modificationRegex = /(add|include|bring in|put|insert|change|modify|rewrite|replace|make it|instead|different|with)\b/;
-      const mentionsEntity = /(cat|dog|rabbit|dragon|character|friend|animal|song|ending|twist|villain|hero|princess|wizard|robot|space|forest|castle)/;
-      const isModification = !!currentStory && (modificationRegex.test(lower) || (lower.startsWith('add ') || lower.startsWith('include ') || lower.includes(' add ') || lower.includes(' with '))) && (mentionsEntity.test(lower) || true);
-
-      if (isModification && currentStory) {
-        // Skip any clarifying questions; proceed to rewrite immediately
-        setIsGenerating(true);
-        setLoadingMessage('Rewriting your story with your change... ✨');
-
-        const prompt = `Rewrite the story to incorporate the user's request while preserving the tone, heart, and lesson. Keep it coherent and self-contained.
-
-User request: ${userMessage}
-
-Previous story title: ${currentStory.title}
-Previous story excerpt (for context):
-${currentStory.content.slice(0, 800)}
-
-Constraints:
-- Language suitable for ages 5–10
-- Maintain or improve the positive moral
-- Target length: long (around 700–1000 words)
-- Clear title on the first line as: TITLE: <your title>
-
-Return only the final story text.`;
-
-        // Add a short assistant ack to the chat
-        const ackMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: "On it! I’ll update the story now—hang tight.",
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, ackMsg]);
-
-        // Generate the updated story
-  const storyResponse = await generateStory(prompt, 'long', messages, sessionId);
-        const story = storyResponse.story;
-
-        const storyMsg: Message = {
-          id: (Date.now() + 2).toString(),
-          role: 'assistant',
-          content: `📖 **${story.title}**\n\nYour updated story is ready! Opening it in the editor.`,
-          timestamp: new Date(),
-          storyQuality: story.final_score ? {
-            clarity: story.final_score.clarity,
-            moralValue: story.final_score.moralValue,
-            ageAppropriateness: story.final_score.ageAppropriateness,
-            score: story.final_score.score,
-            iterations: story.iterations || 1
-          } : undefined
-        };
-        setMessages(prev => [...prev, storyMsg]);
-
-        setCurrentStory(story);
-        setAppState('story');
-        setShowStoryView(true); // auto-open editor for rewrites
-        await loadPreviousStories();
-        return; // early exit since we handled regeneration
-      }
-
       // Stop loading to show response
       setIsGenerating(false);
 
-      // Add AI response to chat for normal conversation
+      // Add AI response to chat
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -138,7 +76,21 @@ Return only the final story text.`;
         
         const prompt = chatResponse.story_prompt;
         
-  const storyResponse = await generateStory(prompt, 'long', messages, sessionId);
+        // Extract length from user message or prompt
+        const extractLength = (text: string): 'short' | 'medium' | 'long' => {
+          const lower = text.toLowerCase();
+          if (lower.includes('long story') || lower.includes('long') || lower.includes('longer')) {
+            return 'long';
+          }
+          if (lower.includes('medium') || lower.includes('medium length')) {
+            return 'medium';
+          }
+          return 'short'; // default
+        };
+        
+        const requestedLength = extractLength(userMessage + ' ' + prompt);
+        
+        const storyResponse = await generateStory(prompt, requestedLength, messages, sessionId);
         const story = storyResponse.story;
 
         const storyMsg: Message = {
@@ -154,7 +106,16 @@ Return only the final story text.`;
             iterations: story.iterations || 1
           } : undefined
         };
-        setMessages(prev => [...prev, storyMsg]);
+        
+        // Add story content to conversation history so context analyzer can see it for modifications
+        const storyContentMsg: Message = {
+          id: (Date.now() + 3).toString(),
+          role: 'assistant',
+          content: `STORY_CONTENT: ${story.title}\n\n${story.content}`,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, storyMsg, storyContentMsg]);
         
         setCurrentStory(story);
         setAppState('story');

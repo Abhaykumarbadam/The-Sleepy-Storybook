@@ -115,7 +115,9 @@ export default function ChatInterface({ messages, onSendMessage, isGenerating, l
           </motion.div>
         ) : (
           <AnimatePresence>
-            {messages.map((message, index) => (
+            {messages
+              .filter(message => !message.content.startsWith('STORY_CONTENT:')) // Filter out story content messages from display
+              .map((message, index) => (
               <motion.div
                 key={message.id}
                 initial={{ opacity: 0, y: 20 }}

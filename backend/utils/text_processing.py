@@ -52,7 +52,8 @@ def extract_age_from_message(message: str) -> Optional[int]:
             if 0 <= age <= 150:
                 return age
         except ValueError:
-            pass
+            # ✅ FIX: Log error instead of silently hiding it
+            print(f"⚠️ Failed to parse age from match: {match.group(1)}")
     
     return None
 

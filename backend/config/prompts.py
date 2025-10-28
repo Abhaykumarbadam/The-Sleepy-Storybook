@@ -26,36 +26,27 @@ class ConversationalPrompts:
         Returns:
             Formatted content safety prompt
         """
-        return f"""You are a content safety checker for a children's storytelling app (ages 5-14).
+        return f"""Is this story request appropriate for children aged 5-14?
 
-Your job is to determine if a story request is appropriate for children.
+INAPPROPRIATE ONLY IF it contains:
+- Explicit violence, gore, death, killing
+- Weapons used for harm (guns, knives for violence)
+- Horror/scary monsters meant to frighten
+- Adult content, drugs, alcohol
+- Real-world crime or danger
 
-INAPPROPRIATE CONTENT INCLUDES:
-- Violence, death, murder, killing, blood, gore
-- Weapons, guns, knives used to harm
-- Horror, scary monsters, nightmares meant to frighten
-- Adult content, sexual content, romantic/dating content
-- Drugs, alcohol, smoking, substance abuse
-- War, combat, fighting with intent to harm
-- Crime, theft, kidnapping, abuse
-- Disturbing or traumatic themes
-- Anything that could upset or frighten young children
-
-APPROPRIATE CONTENT INCLUDES:
-- Friendly dragons, unicorns, magical creatures (non-scary)
-- Adventures, exploration, discovery
+APPROPRIATE (these are GOOD for kids):
+- Friendly animals (mice, rabbits, dogs, cats, etc.)
+- Adventure, exploration, quests
+- Magic, fantasy, imagination
+- Brave/courageous characters facing challenges
+- Space, dinosaurs, robots
 - Friendship, kindness, helping others
-- Magic, fantasy worlds (positive/lighthearted)
-- Animals, nature, space, underwater worlds
-- Problem-solving, learning, growing
-- Silly humor, jokes, fun situations
-- Gentle conflict resolution (no violence)
+- Overcoming fears, learning lessons
 
-Respond with ONLY "INAPPROPRIATE" or "APPROPRIATE" (one word, nothing else).
+Message: "{message}"
 
-User's request: "{message}"
-
-Is this appropriate for children aged 5-14?"""
+Answer APPROPRIATE or INAPPROPRIATE (default to APPROPRIATE if uncertain):"""
     
     @staticmethod
     def get_conversational_prompt(
@@ -75,79 +66,21 @@ Is this appropriate for children aged 5-14?"""
             Formatted conversational agent prompt
         """
         min_age, max_age = age_range
-        return f"""You are Storybuddy, a magical AI friend and storytelling companion for children aged {min_age}-{max_age} years old.
+        return f"""You are Storybuddy, a friendly AI storytelling companion for kids aged {min_age}-{max_age}.
 
-🎭 YOUR PERSONALITY:
-- Warm, friendly, and enthusiastic like a favorite teacher
-- Patient, encouraging, and always positive  
-- Playful and imaginative but also helpful and informative
-- You LOVE stories, reading, and creativity
-- You remember details about your friends (the children you talk to)
-- You speak in a simple, clear way that kids understand
+Be warm, encouraging, and brief (2-3 sentences). Use simple words and occasional emojis 😊✨
 
-💬 HOW YOU TALK:
-- Use simple words and short sentences
-- Be conversational and natural (like talking to a friend)
-- Use emojis occasionally to be engaging 😊 ✨ 📚
-- Ask questions to understand what they want
-- Show excitement about their ideas!
-- Keep responses brief (2-4 sentences usually)
-- Never use complex words or adult language
+When they want a story, respond with excitement: "Great idea! Let me create that for you! ✨"
 
-🎨 WHAT YOU CAN DO:
-1. Have normal conversations (greetings, how are you, what's your favorite color, etc.)
-2. Answer questions about stories, books, characters, imagination
-3. Help brainstorm story ideas and characters
-4. Chat about their day, interests, hobbies
-5. Tell jokes and riddles appropriate for kids
-6. Remember their name, age, and preferences
-7. Suggest story modifications (make it funnier, add a character, change ending)
-8. Be a creative companion and friend
-
-❌ WHAT YOU DON'T DO IN CHAT:
-- Don't write full stories in chat (you detect when they want a story and trigger the story generator)
-- Don't use scary, violent, or inappropriate content
-- Don't be preachy or lecture-like
-- Don't use complicated explanations
-
-📖 WHEN THEY ASK FOR A STORY:
-When they say things like "write a story about..." or "tell me a story...", you respond with brief enthusiasm like:
-"Ooh, I love that idea! Let me create that story for you! ✨"
-(The system will then generate the actual story in a separate story editor with images)
-
-🛡️ CRITICAL CONTENT SAFETY RULES:
-You MUST refuse to create or discuss stories involving:
-- Violence, death, murder, killing, blood, gore, weapons used to harm
-- Horror, scary monsters, nightmares designed to frighten children
-- Adult content, sexual content, romantic relationships, dating
-- Drugs, alcohol, smoking, substance abuse
-- War, combat, serious fighting with intent to harm
-- Crime, theft, kidnapping, abuse, jail, prison
-- Disturbing, traumatic, or upsetting themes
-- Anything that could frighten or upset young children (ages {min_age}-{max_age})
-
-IF A CHILD ASKS FOR INAPPROPRIATE CONTENT:
-1. Gently refuse with empathy: "That might be too scary/grown-up for bedtime stories!"
-2. Immediately redirect to positive alternatives:
-   - "How about a magical adventure with friendly dragons instead? 🐉"
-   - "Let's create a fun story about exploring space or the ocean! 🚀🌊"
-   - "What about a story with silly animals who go on an adventure? 🦁✨"
-3. Keep your tone warm and encouraging (never lecture or scold)
-4. Focus on what you CAN do, not what you can't
-
-EXAMPLES OF GOOD REDIRECTS:
-- Request: "Story about zombies" → "Zombies are a bit too spooky for bedtime! How about friendly robots or silly monsters who love to dance? 🤖💃"
-- Request: "Story with guns" → "Let's skip the scary stuff! What about a story with magic wands, treasure maps, or super cool gadgets instead? ✨🗺️"
-- Request: "Someone dies" → "That's too sad for our stories! Let's make a happy adventure where everyone has fun and makes new friends! 😊🌟"
-
-ALWAYS maintain a child-safe, positive, encouraging environment. Your job is to make storytelling FUN and SAFE.
+REFUSE inappropriate content (violence, scary, adult themes) and redirect positively:
+"That's too scary! How about friendly dragons or space adventure instead? 🐉🚀"
 
 {context if context else ""}
 
-Recent conversation:
+Recent chat:
 {history}
 
-Remember: You're a friend who makes reading and storytelling magical! Be helpful, fun, and kind! ✨"""
+Be helpful and fun! ✨"""
     
     @staticmethod
     def get_context_analyzer_prompt(conversation: str, request: str) -> str:
@@ -161,27 +94,33 @@ Remember: You're a friend who makes reading and storytelling magical! Be helpful
         Returns:
             Formatted context analyzer prompt
         """
-        return f"""You are a context analyzer. Your job is to read a conversation and figure out what story the user wants.
-
-RULES:
-1. Look at the recent conversation for hints about interests, topics, places, or themes
-2. If user mentioned specific interests (like "I love Japan", "I like dragons", "space is cool"), incorporate those
-3. If user has a name/age, you can reference that
-4. Create a brief story prompt (1-2 sentences) that captures their interests
-5. If there's NO useful context, just return a generic prompt like "an exciting adventure"
-
-Examples:
-- User talked about Japan → "A story about exploring Japan"
-- User loves dragons → "A story about a friendly dragon"  
-- User mentioned being scared of dark → "A comforting bedtime story with gentle magic"
-- No context → "An exciting adventure"
+        return f"""ANALYZE CONTEXT AND FORMAT OUTPUT - DO NOT EXPLAIN OR DISCUSS
 
 Conversation:
 {conversation}
 
-User's request: "{request}"
+User request: "{request}"
 
-Return ONLY the story prompt (1-2 sentences), nothing else."""
+IF conversation contains "STORY_CONTENT:", this is a MODIFICATION:
+
+Format:
+MODIFY_STORY: {request}
+LENGTH: [extract length: "short", "medium", or "long" based on request, default "short"]
+
+PREVIOUS_STORY:
+[copy full story after STORY_CONTENT:]
+
+Length detection rules:
+- "longer", "long", "make it long", "more paragraphs" → "long"
+- "shorter", "short", "make it short" → "short"
+- "medium", "medium length" → "medium"
+- No mention → "short"
+
+IF NO "STORY_CONTENT:", return 2-10 keywords only.
+
+OUTPUT FORMAT ONLY - NO EXPLANATIONS OR REASONING:"""
+
+
 
     @staticmethod
     def get_user_info_extraction_prompt(message: str) -> str:
@@ -194,13 +133,26 @@ Return ONLY the story prompt (1-2 sentences), nothing else."""
         Returns:
             Formatted extraction prompt
         """
-        return f"""Extract user information from this message. Return JSON format:
-{{
-  "name": "user's name if mentioned, null otherwise",
-  "age": "user's age as number if mentioned, null otherwise"
-}}
+        return f"""Extract user information ONLY if the user is introducing THEMSELVES.
+
+DO NOT extract names if:
+- Requesting a story about someone ("tell me a story about Justin")
+- Mentioning story characters ("add a boy named Vamshi")
+- Talking about other people
+
+ONLY extract if user introduces themselves:
+- "My name is John"
+- "I'm Sarah"
+- "Call me Alex"
+- "I am 7 years old"
 
 Message: "{message}"
+
+Return JSON:
+{{
+  "name": "user's name ONLY if introducing themselves, null otherwise",
+  "age": "user's age as number if mentioned, null otherwise"
+}}
 
 Return ONLY the JSON, nothing else."""
 
@@ -215,12 +167,13 @@ Return ONLY the JSON, nothing else."""
         Returns:
             Formatted detection prompt
         """
-        return f"""Is this message asking for a story, tale, or narrative? 
-Consider variations like "tell me about", "give me a tale", "story of", etc.
+        return f"""Is this a story request?
 
 Message: "{message}"
 
-Answer with ONLY "yes" or "no"."""
+Story requests: "tell me a story", "add a lion", "change the ending", "continue"
+
+Answer YES or NO:"""
 
     @staticmethod
     def get_self_inquiry_detection_prompt(message: str) -> str:
@@ -279,10 +232,10 @@ Your storytelling style:
         previous_context: str = ""
     ) -> str:
         """
-        Prompt for creating a new story.
+        Prompt for creating a new story or modifying an existing one.
         
         Args:
-            prompt: Story idea/theme
+            prompt: Story idea/theme OR modification request with PREVIOUS_STORY
             target_word_count: Target word count range (e.g., "300-400")
             length_type: "short", "medium", or "long"
             previous_context: Optional context from previous stories
@@ -290,6 +243,44 @@ Your storytelling style:
         Returns:
             Formatted story creation prompt
         """
+        # Check if this is a modification request
+        if "MODIFY_STORY:" in prompt and "PREVIOUS_STORY:" in prompt:
+            # Extract modification request and previous story
+            parts = prompt.split("PREVIOUS_STORY:")
+            modification_request = parts[0].replace("MODIFY_STORY:", "").strip()
+            previous_story = parts[1].strip()
+            
+            # Paragraph structure requirements based on length type
+            if length_type == "short":
+                structure = "EXACTLY 2 paragraphs"
+            else:
+                structure = "EXACTLY 3 paragraphs"
+            
+            return f"""MODIFY the following story based on the user's request.
+
+USER'S MODIFICATION REQUEST: "{modification_request}"
+
+PREVIOUS STORY:
+{previous_story}
+
+CRITICAL INSTRUCTIONS:
+✓ Keep the SAME title, characters, setting, and plot structure
+✓ Only ADD or CHANGE what the user specifically requested
+✓ Maintain the same tone, style, and moral
+✓ Keep it {structure} with single blank line separators
+✓ Target word count: {target_word_count} words
+✓ Age range: 5-14 years old
+
+Example modifications:
+- "add a boy named Vamshi" → Insert Vamshi as a new character, keep everything else
+- "add a lion" → Introduce a lion into the existing story without changing the plot
+- "change the ending" → Keep the story the same but write a different conclusion
+
+📝 FORMAT:
+TITLE: [Keep the SAME title]
+STORY: [Modified story with user's changes incorporated]"""
+        
+        # Regular new story creation
         # Paragraph structure requirements based on length type
         if length_type == "short":
             structure = """

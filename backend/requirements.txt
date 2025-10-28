@@ -20,3 +20,6 @@ gTTS==2.5.3
 # Core LangGraph
 langgraph>=0.2.0
 langgraph-checkpoint>=1.0.0
+
+# Opik - LLM Evaluation & Tracing (runs locally + Comet ML)
+opik>=0.2.0

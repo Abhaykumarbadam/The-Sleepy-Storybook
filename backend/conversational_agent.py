@@ -32,11 +32,11 @@ class AgentConfig:
         "mixtral-8x7b-32768"
     ])
     TEMPERATURE: float = 0.7
-    MAX_TOKENS: int = 500
+    MAX_TOKENS: int = 300
     MIN_AGE: int = 5
     MAX_AGE: int = 14
     MAX_CONVERSATION_HISTORY: int = 4
-    MAX_CONTEXT_ANALYSIS_HISTORY: int = 8
+    MAX_CONTEXT_ANALYSIS_HISTORY: int = 4
     DEFAULT_SESSION_ID: str = "default"
     LANGSMITH_PROJECT_DEFAULT: str = "bedtime-stories"
 
@@ -90,7 +90,16 @@ class ConversationalAgent:
         self.groq_api_key = groq_api_key
         self._setup_langsmith_tracing(langsmith_api_key)
         self.model_candidates = self._load_model_candidates()
-        self.llm = None
+        
+        # ✅ FIX: Create LLM instance once and reuse it (avoid recreation waste)
+        self.llm = ChatGroq(
+            model=self.model_candidates[0],
+            api_key=self.groq_api_key,
+            temperature=self.config.TEMPERATURE,
+            max_tokens=self.config.MAX_TOKENS
+        )
+        self.current_model = self.model_candidates[0]
+        
         self.sessions: Dict[str, Dict[str, any]] = {}
         self._log_initialization()
     
@@ -185,14 +194,18 @@ class ConversationalAgent:
         """
         last_error = None
         
-        for attempt, model_name in enumerate(self.model_candidates, 1):
+        for attempt, model_name in enumerate(self.model_candidates, start=1):
             try:
-                self.llm = ChatGroq(
-                    model=model_name,
-                    api_key=self.groq_api_key,
-                    temperature=self.config.TEMPERATURE,
-                    max_tokens=self.config.MAX_TOKENS
-                )
+                # ✅ FIX: Only recreate LLM if model changed (avoid waste)
+                if model_name != self.current_model:
+                    print(f"🔄 Conversational Agent switching to model: {model_name}")
+                    self.llm = ChatGroq(
+                        model=model_name,
+                        api_key=self.groq_api_key,
+                        temperature=self.config.TEMPERATURE,
+                        max_tokens=self.config.MAX_TOKENS
+                    )
+                    self.current_model = model_name
                 
                 return self.llm.invoke(messages)
                     
@@ -257,8 +270,8 @@ class ConversationalAgent:
                 print(f"📝 Learned user's age: {ctx['age']}")
                 
         except Exception as e:
-            # Silently fail if extraction doesn't work
-            pass
+            # ✅ FIX: Log errors instead of silently hiding them
+            print(f"⚠️ Failed to extract user info: {e}")
     
     # ------------------------------------------------------------------------
     # CONTENT SAFETY
@@ -464,6 +477,10 @@ class ConversationalAgent:
         if not recent_history:
             return message
         
+        # Debug: Check if STORY_CONTENT is in the conversation
+        has_story_content = any("STORY_CONTENT:" in msg.get("content", "") for msg in recent_history)
+        print(f"🔍 Context analysis - Has STORY_CONTENT: {has_story_content}, History length: {len(recent_history)}")
+        
         # Analyze conversation context
         conversation_text = self._format_conversation_history(recent_history)
         prompt = ConversationalPrompts.get_context_analyzer_prompt(
@@ -472,17 +489,38 @@ class ConversationalAgent:
         )
         
         try:
+            # Use the system prompt which contains the MODIFY_STORY detection logic
+            # Don't override it with additional instructions
             messages = [
                 SystemMessage(content=prompt),
-                HumanMessage(content="What story prompt should I use based on this conversation?")
+                HumanMessage(content="Analyze and respond:")
             ]
             
             response = self._invoke_with_fallback(messages, session_id=session_id)
             context_aware_prompt = response.content.strip()
             
-            print(f"💡 Context-aware prompt generated: '{context_aware_prompt}'")
-            return context_aware_prompt
+            # Safety check: if LLM returned explanation text instead of following format, 
+            # manually build the correct format
+            if context_aware_prompt.startswith("Since the conversation") or \
+               context_aware_prompt.startswith("This is a") or \
+               "this is a modification" in context_aware_prompt.lower()[:100]:
+                # LLM is explaining instead of formatting - manually build MODIFY_STORY format
+                print(f"⚠️ LLM returned explanation, manually building modification format")
+                
+                # Extract story content from conversation
+                story_content = ""
+                for entry in recent_history:
+                    if "STORY_CONTENT:" in entry.get("content", ""):
+                        story_content = entry["content"].split("STORY_CONTENT:")[-1].strip()
+                        break
+                
+                if story_content:
+                    return f"MODIFY_STORY: {message}\n\nPREVIOUS_STORY:\n{story_content}"
+                else:
+                    return message
             
+            print(f"💡 Context-aware prompt generated: '{context_aware_prompt[:100]}...'")
+            return context_aware_prompt
         except Exception as e:
             print(f"⚠️ Error building context-aware prompt: {e}")
             return message
