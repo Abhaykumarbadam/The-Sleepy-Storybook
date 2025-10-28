@@ -50,13 +50,11 @@ class StorytellerAgent:
             "mixtral-8x7b-32768"
         ]
         self.temperature = 0.8
-        # Reduce max tokens to lower generation cost and output length
         self.max_tokens = 700
         
-        # ✅ FIX: Create LLM instance once and reuse it (avoid recreation waste)
         self.llm = ChatGroq(
             api_key=self.groq_api_key,
-            model=self.model_candidates[0],  # Start with first model
+            model=self.model_candidates[0], 
             temperature=self.temperature,
             max_tokens=self.max_tokens
         )
@@ -69,12 +67,10 @@ class StorytellerAgent:
         last_err = None
         for model in self.model_candidates:
             try:
-                # Start timing for latency tracking
                 start_time = time.time()
                 
-                # ✅ FIX: Only recreate LLM if model changed (avoid waste)
                 if model != self.current_model:
-                    print(f"🔄 Switching to model: {model}")
+                    print(f"Switching to model: {model}")
                     self.llm = ChatGroq(
                         api_key=self.groq_api_key,
                         model=model,
@@ -83,17 +79,13 @@ class StorytellerAgent:
                     )
                     self.current_model = model
                 
-                # Get Opik tracer for automatic LangChain integration
                 opik_tracer = get_opik_tracer()
                 config = {"callbacks": [opik_tracer]} if opik_tracer else {}
                 
-                # Invoke with Opik tracing
                 response = self.llm.invoke(messages, config=config)
                 
-                # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
                 
-                # Log to Opik for performance tracking
                 log_llm_call(
                     model_name=model,
                     prompt=str(messages),
@@ -139,8 +131,6 @@ class StorytellerAgent:
         Returns:
             Dict with 'title' and 'content' keys
         """
-        # Build context from previous stories (if available)
-        # This helps maintain consistent tone and style
         previous_context = ""
         if previous_stories and len(previous_stories) > 0:
             previous_context = "\n\nHere are some examples of previously created stories to match the tone and style:\n"
@@ -216,9 +206,7 @@ class StorytellerAgent:
         
         This function extracts those parts using regex
         """
-        # Use regex to find the title
         title_match = re.search(r'TITLE:\s*(.+?)\n', response_text, re.IGNORECASE)
-        # Use regex to find the story content
         story_match = re.search(r'STORY:\s*([\s\S]+)', response_text, re.IGNORECASE)
         
         title = title_match.group(1).strip() if title_match else "A Bedtime Story"
@@ -262,13 +250,11 @@ class JudgeAgent:
             "mixtral-8x7b-32768"
         ]
         self.temperature = 0.3
-        # Reduce judge output size
         self.max_tokens = 300
         
-        # ✅ FIX: Create LLM instance once and reuse it (avoid recreation waste)
         self.llm = ChatGroq(
             api_key=self.groq_api_key,
-            model=self.model_candidates[0],  # Start with first model
+            model=self.model_candidates[0],  
             temperature=self.temperature,
             max_tokens=self.max_tokens
         )
@@ -281,10 +267,8 @@ class JudgeAgent:
         last_err = None
         for model in self.model_candidates:
             try:
-                # Start timing for latency tracking
                 start_time = time.time()
                 
-                # ✅ FIX: Only recreate LLM if model changed (avoid waste)
                 if model != self.current_model:
                     print(f"🔄 Judge switching to model: {model}")
                     self.llm = ChatGroq(
@@ -302,7 +286,6 @@ class JudgeAgent:
                 # Invoke with Opik tracing
                 response = self.llm.invoke(messages, config=config)
                 
-                # Calculate latency
                 latency_ms = (time.time() - start_time) * 1000
                 
                 # Log to Opik for performance tracking

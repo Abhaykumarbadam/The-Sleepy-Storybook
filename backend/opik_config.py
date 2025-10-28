@@ -16,7 +16,6 @@ from typing import Optional
 from opik import Opik, track
 from opik.integrations.langchain import OpikTracer
 
-# Global Opik client instance
 _opik_client: Optional[Opik] = None
 _opik_tracer: Optional[OpikTracer] = None
 
@@ -142,7 +141,6 @@ def log_llm_call(
     try:
         client = get_opik_client()
         
-        # Create trace for this LLM call
         trace = client.trace(
             name=f"LLM Call: {model_name}",
             input={"prompt": prompt},
@@ -156,7 +154,6 @@ def log_llm_call(
             }
         )
         
-        # Log feedback score based on latency (simple performance metric)
         if latency_ms < 2000:
             score = 1.0  # Fast
         elif latency_ms < 5000:
@@ -200,7 +197,6 @@ def log_story_evaluation(
     try:
         client = get_opik_client()
         
-        # Create trace for evaluation
         trace = client.trace(
             name=f"Story Evaluation: {story_title}",
             input={

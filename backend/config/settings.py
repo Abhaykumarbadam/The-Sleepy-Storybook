@@ -9,8 +9,6 @@ import os
 from typing import List, Optional
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
-
-# Load environment variables
 load_dotenv()
 
 

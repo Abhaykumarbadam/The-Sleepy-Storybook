@@ -24,10 +24,8 @@ class JSONStorage:
         self.connected = False
         
         try:
-            # Create storage directory if it doesn't exist
             self.storage_dir.mkdir(exist_ok=True)
             
-            # Initialize JSON files if they don't exist
             self._init_file(self.stories_file)
             self._init_file(self.conversations_file)
             
@@ -57,7 +55,6 @@ class JSONStorage:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     
-    # ==================== STORY OPERATIONS ====================
     
     def save_story(self, story: Dict) -> Dict:
         """

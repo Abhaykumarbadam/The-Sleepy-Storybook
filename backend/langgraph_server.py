@@ -20,7 +20,6 @@ from langgraph_workflow import (
     run_story_generation
 )
 
-# Initialize FastAPI app
 app = FastAPI(
     title="Bedtime Stories LangGraph API",
     description="LangGraph-powered multi-agent workflow for bedtime stories",

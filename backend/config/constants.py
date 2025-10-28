@@ -9,10 +9,6 @@ from enum import Enum
 from typing import Dict, List
 
 
-# ============================================================================
-# API CONSTANTS
-# ============================================================================
-
 class HTTPStatus:
     """HTTP status code constants."""
     OK = 200
@@ -42,9 +38,6 @@ class APIMessages:
     RATE_LIMIT_ERROR = "Rate limit reached for the current Groq model(s). Please try again in a few minutes."
 
 
-# ============================================================================
-# STORY GENERATION CONSTANTS
-# ============================================================================
 
 class StoryLength(str, Enum):
     """Allowed story length types."""
@@ -65,10 +58,6 @@ class QualityMetrics:
     MIN_SCORE = 1
 
 
-# ============================================================================
-# PROMPT TEMPLATES PATH (for future extraction)
-# ============================================================================
-
 class PromptPaths:
     """Paths to prompt template files (future enhancement)."""
     
@@ -79,9 +68,6 @@ class PromptPaths:
     CONVERSATION_SYSTEM = "prompts/conversation_system.txt"
 
 
-# ============================================================================
-# TEXT PROCESSING CONSTANTS
-# ============================================================================
 
 class TextLimits:
     """Text processing limits."""
@@ -117,9 +103,6 @@ class RegexPatterns:
     WORD_COUNT_PATTERN = r'\b\w+\b'
 
 
-# ============================================================================
-# STORAGE CONSTANTS
-# ============================================================================
 
 class StorageFiles:
     """JSON storage file names."""
@@ -136,9 +119,6 @@ class StorageKeys:
     UPDATED_AT = "updated_at"
 
 
-# ============================================================================
-# LOGGING CONSTANTS
-# ============================================================================
 
 class LogMessages:
     """Standard log messages."""
@@ -166,9 +146,6 @@ class LogMessages:
     CONTEXT_GENERATED = "💡 Context-aware prompt generated: {prompt}"
 
 
-# ============================================================================
-# UI/UX CONSTANTS (for frontend reference)
-# ============================================================================
 
 class UIMessages:
     """User-facing messages."""
@@ -187,10 +164,6 @@ class UIMessages:
     STORY_LENGTH_PROMPT = "How long should your story be?"
 
 
-# ============================================================================
-# FEATURE FLAGS (for gradual rollout)
-# ============================================================================
-
 class FeatureFlags:
     """Feature toggle flags."""
     
@@ -200,10 +173,6 @@ class FeatureFlags:
     ENABLE_AUDIO_GENERATION = True
     ENABLE_IMAGE_GENERATION = False  # Future feature
 
-
-# ============================================================================
-# RETRY AND TIMEOUT SETTINGS
-# ============================================================================
 
 class RetryConfig:
     """Retry configuration for various operations."""
@@ -221,9 +190,6 @@ class RetryConfig:
     API_TIMEOUT_SECONDS = 30
 
 
-# ============================================================================
-# VALIDATION RULES
-# ============================================================================
 
 class ValidationRules:
     """Input validation rules."""
@@ -243,10 +209,6 @@ class ValidationRules:
     MIN_FEEDBACK_SCORE = 1
     MAX_FEEDBACK_SCORE = 10
 
-
-# ============================================================================
-# EXPORT ALL CONSTANTS
-# ============================================================================
 
 __all__ = [
     'HTTPStatus',

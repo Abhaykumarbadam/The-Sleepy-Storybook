@@ -89,11 +89,9 @@ class StoryGenerationState(TypedDict, total=False):
     
     All other fields are auto-initialized with defaults in the code.
     """
-    # User inputs (ONLY these 2 show in Studio!)
     prompt: str
     length_type: Literal["short", "medium", "long"]
     
-    # Internal state (auto-initialized, not visible in Studio input)
     session_id: str
     story_title: str
     story_content: str
@@ -169,9 +167,6 @@ def route_after_conversation(state: ConversationState) -> Literal["generate_stor
     return next_step
 
 
-# ============================================================================
-# STORY GENERATION NODES
-# ============================================================================
 
 
 class StoryCreatorNode:
@@ -190,11 +185,9 @@ class StoryCreatorNode:
     def __call__(self, state: StoryGenerationState) -> StoryGenerationState:
         """Create or refine story"""
         
-        # Auto-initialize state fields if not present (transparent initialization)
         iteration = state.get("iteration", 1)
         length_type = state.get("length_type", "short")
         
-        # Initialize missing fields on first call
         if iteration == 1 and not state.get("max_iterations"):
             logger.info("🔧 Auto-initializing state fields")
         
@@ -246,8 +239,6 @@ class StoryCreatorNode:
             "next_step": "evaluate"
         }
         
-        # Auto-initialize ALL internal fields (happens transparently on first call)
-        # This allows Studio to only show prompt and length_type as inputs!
         if "session_id" not in state:
             updates["session_id"] = "demo-session"
         if "iteration" not in state:
@@ -293,8 +284,6 @@ class StoryEvaluatorNode:
             content=state["story_content"]
         )
         
-        # Determine approval (strict criteria for quality)
-        # Note: Judge returns camelCase keys: moralValue, ageAppropriateness
         approved = (
             evaluation["score"] >= 9 and
             evaluation["clarity"] >= 8 and
@@ -318,7 +307,7 @@ class StoryEvaluatorNode:
             story_title=state["story_title"],
             story_content=state["story_content"],
             quality_scores=quality_scores,
-            overall_score=evaluation["score"] * 10,  # Convert to 0-100 scale
+            overall_score=evaluation["score"] * 10, 
             iteration=state.get("iteration", 1),
             approved=approved,
             metadata={
@@ -328,11 +317,9 @@ class StoryEvaluatorNode:
             }
         )
         
-        # Decide next step
         if approved and state["structure_correct"]:
             next_step = "finalize"
         elif not state["structure_correct"]:
-            # Safety: if we've tried formatting too many times, give up and finalize
             format_attempts = state.get("format_attempts", 0)
             if format_attempts >= 2:
                 logger.warning(f"⚠️ Gave up on paragraph formatting after {format_attempts} attempts")
@@ -340,7 +327,6 @@ class StoryEvaluatorNode:
             else:
                 next_step = "format_paragraphs"
         elif state["iteration"] >= state["max_iterations"]:
-            # Max iterations reached, finalize anyway
             next_step = "finalize"
         else:
             next_step = "refine"
@@ -379,7 +365,6 @@ class ParagraphFormatterNode:
             f"{state['actual_paragraphs']} to {state['target_paragraphs']} paragraphs"
         )
         
-        # Build structure feedback
         target = state["target_paragraphs"]
         if target == 2:
             feedback = (
@@ -407,7 +392,6 @@ class ParagraphFormatterNode:
         actual_paras = count_paragraphs(result["content"])
         structure_correct = actual_paras == target
         
-        # Track format attempts to prevent infinite loops
         format_attempts = state.get("format_attempts", 0) + 1
         
         logger.info(f"📐 After formatting: {actual_paras} paragraphs (attempt {format_attempts})")
@@ -456,13 +440,12 @@ class FinalizeStoryNode:
             "revision_history": state.get("revision_history", [])
         }
         
-        # Log workflow completion to Opik
         log_workflow_completion(
             prompt=state["prompt"],
             final_story=final_story,
             total_iterations=state.get("iteration", 1),
-            total_time_seconds=0,  # Can be tracked if needed
-            llm_calls_count=state.get("iteration", 1) * 2,  # Estimate: 2 calls per iteration
+            total_time_seconds=0, 
+            llm_calls_count=state.get("iteration", 1) * 2, 
             metadata={
                 "length_type": state["length_type"],
                 "approved": state.get("approved", False),
@@ -493,9 +476,6 @@ def route_after_evaluation(
     return next_step
 
 
-# ============================================================================
-# GRAPH BUILDERS
-# ============================================================================
 
 def create_conversation_graph(agent: ConversationalAgent) -> StateGraph:
     """
@@ -514,8 +494,6 @@ def create_conversation_graph(agent: ConversationalAgent) -> StateGraph:
     # Set entry point
     graph.set_entry_point("conversation_agent")
     
-    # Always end after conversation node
-    # The decision to generate a story is handled by checking state.should_generate_story
     graph.add_edge("conversation_agent", END)
     
     return graph
@@ -629,9 +607,6 @@ def create_complete_workflow(
     return conversation_app, story_app
 
 
-# ============================================================================
-# HELPER FUNCTIONS FOR INTEGRATION
-# ============================================================================
 
 def run_conversation(
     graph,
@@ -730,9 +705,6 @@ def run_story_generation(
     return result.get("final_story", {})
 
 
-# ============================================================================
-# EXPORT FOR LANGGRAPH SERVER
-# ============================================================================
 
 def get_conversation_graph():
     """
