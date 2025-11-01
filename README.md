@@ -20,7 +20,8 @@ An AI-powered storytelling app for children (ages 5-10) that creates personalize
 ### 🛡️ Safety & Monitoring
 - ✅   Content Filtering   - Automatic safety checks for child-appropriate content
 - 📊   LangSmith Tracing   - Full conversation and workflow monitoring
-- �   LangGraph Studio   - Visual debugging of AI agent interactions
+- 🔍   LangGraph Studio   - Visual debugging of AI agent interactions
+- 📈   Opik Evaluation   - LLM performance metrics and quality tracking
 
 ## 🏗️ Architecture
 
@@ -35,7 +36,8 @@ An AI-powered storytelling app for children (ages 5-10) that creates personalize
 -   LangChain   - LLM orchestration framework
 -   LangGraph   - Multi-agent workflow engine
 -   Groq API   - Ultra-fast LLM inference
--   JSON Storage   - Local file storage for conversation history
+-   Opik   - LLM evaluation and tracing (local mode)
+-   JSON Storage   - Local file storage for stories and history
 
 ### AI Agents
 -   Conversational Agent   - Handles chat and story requests
@@ -82,18 +84,36 @@ LANGSMITH_PROJECT=bedtime-stories
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 
-# Optional: Server configuration
+# Server configuration
 HOST=0.0.0.0
-PORT=8000
+PORT=8001
 ```
 
   Get API Keys:  
 -   Groq API  : https://console.groq.com (free tier available)
 -   LangSmith  : https://smith.langchain.com (free tier for debugging)
 
-### 4. Run the Application
+### 4. Set Up Opik (Optional - for LLM Evaluation)
 
-#### Option 1: Standard Mode (FastAPI Server)
+Opik provides local LLM evaluation and tracing without requiring cloud accounts:
+
+```bash
+# Start Opik local server (Docker required)
+docker run -d --name opik -p 5173:5173 -p 8080:8080 comet-ml/opik:latest
+
+# Access Opik UI
+# Open http://localhost:5173 in your browser
+```
+
+  Opik Features:  
+- 📊 Track LLM performance metrics (latency, tokens, costs)
+- 🔍 Hierarchical trace visualization
+- 📈 Story quality evaluation over time
+- 💾 Dataset creation from real stories
+
+### 5. Run the Application
+
+#### Standard Mode (FastAPI Server)
 
 ```bash
 # Terminal 1: Start Backend
@@ -104,22 +124,12 @@ python main.py
 npm run dev
 ```
 
-#### Option 2: LangGraph Studio Mode (with Visual Debugging)
-
-```bash
-# Terminal 1: Start LangGraph Server
-cd backend
-langgraph dev --port 2024
-
-# Terminal 2: Start Frontend
-npm run dev
-```
-
   Access Points:  
-- 🎨   Frontend  : http://localhost:5173
-- 🚀   Backend API  : http://localhost:8000
-- 📚   API Docs  : http://localhost:8000/docs
-- 🔍   LangGraph Studio  : https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+- 🎨   Frontend  : http://localhost:5175
+- 🚀   Backend API  : http://localhost:8001
+- 📚   API Docs  : http://localhost:8001/docs
+- �   Opik UI  : http://localhost:5173 (if running)
+- �🔍   LangSmith  : https://smith.langchain.com (if configured)
 
 ## 📂 Project Structure
 
@@ -136,15 +146,19 @@ The-Sleepy-Storybook/
 │   └── styles/                   # CSS styles
 │
 ├── backend/                      # Python backend
-│   ├── main.py                  # FastAPI server
+│   ├── main.py                  # FastAPI server (modern lifespan)
 │   ├── agents.py                # AI agents (Storyteller, Judge)
 │   ├── conversational_agent.py  # Chat handler
 │   ├── langgraph_workflow.py    # Multi-agent workflows
-│   ├── langgraph_server.py      # LangGraph API wrapper
+│   ├── opik_config.py           # Opik evaluation setup
+│   ├── create_dataset_from_stories.py  # Dataset creation script
 │   ├── storage.py               # JSON storage operations
 │   ├── langgraph.json           # LangGraph configuration
 │   ├── setup.py                 # Package configuration
 │   ├── requirements.txt         # Python dependencies
+│   ├── api/                     # API routes
+│   ├── config/                  # Settings
+│   ├── data/                    # Stories JSON storage
 │   └── .env                     # Environment variables
 │
 ├── SETUP_GUIDE.md               # Detailed setup instructions
@@ -156,16 +170,16 @@ The-Sleepy-Storybook/
 | Layer | Technologies |
 |-------|-------------|
 |   Frontend   | React, TypeScript, Tailwind CSS, Vite |
-|   Backend   | FastAPI, Python 3.11+ |
+|   Backend   | FastAPI, Python 3.12+ |
 |   AI/LLM   | LangChain, LangGraph, Groq API |
 |   Storage   | JSON File Storage |
-|   Monitoring   | LangSmith (tracing & debugging) |
+|   Monitoring   | LangSmith, Opik (local) |
 |   Image Gen   | Pollinations.AI |
 |   TTS   | gTTS (Google Text-to-Speech) |
 
-## � Documentation
--   [backend/README.md](./backend/README.md)   - Backend architecture details
--   API Docs   - Interactive Swagger docs at `/docs` when server is running
+## 📚 Documentation
+-   API Docs   - Interactive Swagger docs at http://localhost:8001/docs
+-   Opik Traces   - View LLM metrics at http://localhost:5173
 
 ## 🎯 Use Cases
 
