@@ -39,7 +39,7 @@ from opik_config import initialize_opik, log_story_evaluation, log_workflow_comp
 
 logger = setup_logger(__name__)
 
-initialize_opik(use_local=False)
+initialize_opik(project_name="Sleepy-Storybook")
 
 
 class ConversationInput(BaseModel):
@@ -191,10 +191,24 @@ class StoryCreatorNode:
         if iteration == 1 and not state.get("max_iterations"):
             logger.info("🔧 Auto-initializing state fields")
         
+        from opik_config import get_current_trace
+        
         is_refinement = iteration > 1
+        parent_trace = get_current_trace()
+        span = None
         
         if is_refinement:
             logger.info(f"🔄 Story Creator (Iteration {iteration}): Refining based on feedback")
+            
+            # Create span for refinement
+            if parent_trace:
+                span = parent_trace.span(
+                    name=f"Story Refinement (Iteration {iteration})",
+                    input={
+                        "feedback": state["evaluation_feedback"],
+                        "previous_title": state["story_title"]
+                    }
+                )
             
             result = self.storyteller.refine_story(
                 title=state["story_title"],
@@ -205,6 +219,16 @@ class StoryCreatorNode:
         else:
             logger.info(f"✨ Story Creator (Iteration {iteration}): Creating initial story")
             
+            # Create span for initial creation
+            if parent_trace:
+                span = parent_trace.span(
+                    name=f"Story Creation (Iteration {iteration})",
+                    input={
+                        "prompt": state["prompt"],
+                        "length_type": state["length_type"]
+                    }
+                )
+            
             # Get target word count from settings
             word_config = settings.story.WORD_COUNTS[state["length_type"]]
             target_word_count = f"{word_config['min']}-{word_config['max']}"
@@ -214,6 +238,15 @@ class StoryCreatorNode:
                 target_word_count=target_word_count,
                 length_type=state["length_type"],
                 previous_stories=[]
+            )
+        
+        # Update span with output if it exists
+        if span:
+            span.update(
+                output={
+                    "title": result["title"],
+                    "content_preview": result["content"][:200] + "..."
+                }
             )
         
         # Count paragraphs
@@ -672,6 +705,21 @@ def run_story_generation(
     Returns:
         Final story dict with title, content, and metadata
     """
+    from opik_config import start_workflow_trace
+    
+    # Start parent trace for entire story generation workflow
+    start_workflow_trace(
+        name="Story Generation Workflow",
+        input_data={
+            "prompt": prompt,
+            "length_type": length_type,
+            "max_iterations": max_iterations or settings.story.MAX_ITERATIONS
+        },
+        metadata={
+            "session_id": session_id,
+            "workflow_type": "story_generation"
+        }
+    )
     
     if max_iterations is None:
         max_iterations = settings.story.MAX_ITERATIONS

@@ -1,28 +1,22 @@
 """
 Bedtime Story Time - FastAPI Backend
-A Python backend for AI-powered children's storytelling using LangChain + Groq
-
-This is the main application entry point.
+AI-powered children's storytelling using LangChain + Groq
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from contextlib import asynccontextmanager
 
 from api.routes import conversation_router, stories_router, audio_router
 from config import settings
 from utils import setup_logger
+from opik_config import initialize_opik
 
 logger = setup_logger(__name__)
 
 
 def create_application() -> FastAPI:
-    """
-    Create and configure the FastAPI application.
-    
-    Returns:
-        Configured FastAPI application instance
-    """
+    """Create and configure the FastAPI application."""
     app = FastAPI(
         title="Bedtime Story API",
         description="AI-powered storytelling for children",
@@ -31,10 +25,13 @@ def create_application() -> FastAPI:
     
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.server.CORS_ORIGINS,
-        allow_credentials=settings.server.CORS_ALLOW_CREDENTIALS,
-        allow_methods=settings.server.CORS_ALLOW_METHODS,
-        allow_headers=settings.server.CORS_ALLOW_HEADERS,
+        allow_origins=[
+            "http://localhost:5175",
+            "http://localhost:3000"
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"]
     )
     
     app.include_router(conversation_router)
@@ -49,12 +46,7 @@ app = create_application()
 
 @app.get("/")
 async def root():
-    """
-    Health check endpoint - confirms the API is running.
-    
-    Returns:
-        dict: API status information
-    """
+    """Health check endpoint - confirms the API is running."""
     return {
         "message": "Bedtime Story API is running!",
         "status": "healthy",
@@ -65,12 +57,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """
-    Detailed health check endpoint.
-    
-    Returns:
-        dict: Detailed health status
-    """
+    """Detailed health check endpoint."""
     return {
         "status": "healthy",
         "api": "operational",
@@ -79,21 +66,27 @@ async def health_check():
     }
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize resources on application startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     logger.info("🌙 ===== Bedtime Story API Starting =====")
     logger.info(f"📡 Server: {settings.server.HOST}:{settings.server.PORT}")
     logger.info(f"🔧 Debug Mode: {settings.server.DEBUG}")
     logger.info(f"🎯 Max Iterations: {settings.story.MAX_ITERATIONS}")
+    
+    try:
+        initialize_opik(project_name="Sleepy-Storybook")
+        logger.info("Opik initialized for project: Sleepy-Storybook")
+    except Exception as e:
+        logger.warning(f"Opik initialization failed: {e}")
+    
     logger.info("✅ Application started successfully")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup resources on application shutdown."""
+    
+    yield
+    
     logger.info("👋 Bedtime Story API shutting down...")
     logger.info("✅ Cleanup complete")
+
+app.router.lifespan_context = lifespan
 
 
 if __name__ == "__main__":

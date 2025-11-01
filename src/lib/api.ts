@@ -3,7 +3,7 @@
  * Handles all backend communication
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8001';
 
 export interface Story {
   _id?: string;
