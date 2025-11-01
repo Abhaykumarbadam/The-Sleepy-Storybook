@@ -1,37 +1,26 @@
 """
 Opik Configuration for LLM Evaluation and Tracing
 
-This module sets up Opik for tracking:
-- LLM performance (latency, tokens, model used)
-- Story quality evaluation metrics
-- Workflow execution traces
-
-Opik can run in two modes:
-1. Local mode: For development/testing (no account needed)
-2. Cloud mode: Connected to Comet ML for team collaboration
+Tracks LLM performance, story quality metrics, and workflow execution traces.
 """
 
 import os
 from typing import Optional
+from contextvars import ContextVar
 from opik import Opik, track
 from opik.integrations.langchain import OpikTracer
 
 _opik_client: Optional[Opik] = None
 _opik_tracer: Optional[OpikTracer] = None
+_current_trace: ContextVar[Optional[object]] = ContextVar('current_trace', default=None)
 
 
-def initialize_opik(
-    use_local: bool = True,
-    api_key: Optional[str] = None,
-    workspace: Optional[str] = None
-) -> Opik:
+def initialize_opik(project_name: str = "Sleepy-Storybook") -> Opik:
     """
-    Initialize Opik client for LLM evaluation
+    Initialize Opik client for LLM evaluation in local mode
     
     Args:
-        use_local: If True, runs in local mode (no Comet ML account needed)
-        api_key: Comet ML API key (only needed for cloud mode)
-        workspace: Comet ML workspace name (only needed for cloud mode)
+        project_name: Name of the Opik project (default: "Sleepy-Storybook")
     
     Returns:
         Opik client instance
@@ -43,38 +32,18 @@ def initialize_opik(
         return _opik_client
     
     try:
-        if use_local:
-            print("🔧 Initializing Opik in LOCAL mode (no Comet ML account needed)")
-            _opik_client = Opik(use_local=True)
-            print("✅ Opik LOCAL mode initialized successfully!")
-            print("📊 View traces at: http://localhost:5173 (run 'opik ui' to start)")
-        else:
-            print("🔧 Initializing Opik in CLOUD mode (Comet ML)")
-            
-            # Get credentials from environment if not provided
-            api_key = api_key or os.getenv("OPIK_API_KEY") or os.getenv("COMET_API_KEY")
-            workspace = workspace or os.getenv("OPIK_WORKSPACE") or os.getenv("COMET_WORKSPACE")
-            
-            if not api_key:
-                raise ValueError(
-                    "Opik API key required for cloud mode! "
-                    "Set OPIK_API_KEY or COMET_API_KEY environment variable, "
-                    "or pass api_key parameter"
-                )
-            
-            _opik_client = Opik(
-                api_key=api_key,
-                workspace=workspace
-            )
-            print(f"✅ Opik CLOUD mode initialized! Workspace: {workspace}")
-            print(f"📊 View traces at: https://www.comet.com/{workspace}/opik/traces")
+        print(f"🔧 Initializing Opik in LOCAL mode for project: {project_name}")
+        _opik_client = Opik(
+            host="http://localhost:8080",
+            project_name=project_name
+        )
+        print("✅ Opik LOCAL mode initialized successfully!")
+        print(f"📊 View traces at: http://localhost:5173/default/projects/{project_name}")
+        print("💡 Opik API: http://localhost:8080 | UI: http://localhost:5173")
         
-        # Initialize LangChain tracer integration
-        _opik_tracer = OpikTracer()
+        _opik_tracer = OpikTracer(project_name=project_name)
         print("✅ Opik LangChain tracer initialized")
-        
         return _opik_client
-        
     except Exception as e:
         print(f"⚠️ Failed to initialize Opik: {e}")
         print("Continuing without Opik evaluation...")
@@ -96,13 +65,70 @@ def is_opik_enabled() -> bool:
     return _opik_client is not None
 
 
+def start_workflow_trace(name: str, input_data: dict, metadata: Optional[dict] = None):
+    """
+    Start a parent trace for the entire workflow
+    
+    Args:
+        name: Name of the workflow (e.g., "Story Generation")
+        input_data: Input data for the workflow
+        metadata: Additional metadata
+    
+    Returns:
+        Trace object or None if Opik is not enabled
+    """
+    if not is_opik_enabled():
+        return None
+    
+    try:
+        client = get_opik_client()
+        trace = client.trace(
+            name=name,
+            input=input_data,
+            metadata=metadata or {}
+        )
+        _current_trace.set(trace)
+        return trace
+    except Exception as e:
+        print(f"⚠️ Failed to start workflow trace: {e}")
+        return None
+
+
+def end_workflow_trace(output_data: dict, metadata: Optional[dict] = None):
+    """
+    End the parent trace and log output
+    
+    Args:
+        output_data: Final output data
+        metadata: Additional metadata
+    """
+    if not is_opik_enabled():
+        return
+    
+    try:
+        trace = _current_trace.get()
+        if trace:
+            trace.update(
+                output=output_data,
+                metadata=metadata or {}
+            )
+            _current_trace.set(None)
+    except Exception as e:
+        print(f"⚠️ Failed to end workflow trace: {e}")
+
+
+def get_current_trace():
+    """Get the current parent trace"""
+    return _current_trace.get()
+
+
 # Decorator for tracking functions with Opik
-def track_with_opik(name: Optional[str] = None, project_name: str = "bedtime-stories"):
+def track_with_opik(name: Optional[str] = None, project_name: str = "Sleepy-Storybook"):
     """
     Decorator to track function execution with Opik
     
     Usage:
-        @track_with_opik(name="story_creation", project_name="bedtime-stories")
+        @track_with_opik(name="story_creation", project_name="Sleepy-Storybook")
         def create_story(prompt: str):
             # Your code here
             return story
@@ -124,7 +150,7 @@ def log_llm_call(
     metadata: Optional[dict] = None
 ):
     """
-    Log an LLM call to Opik for performance tracking
+    Log an LLM call as a span under the current trace
     
     Args:
         model_name: Name of the model used (e.g., "llama-3.3-70b-versatile")
@@ -139,12 +165,15 @@ def log_llm_call(
         return
     
     try:
-        client = get_opik_client()
+        parent_trace = get_current_trace()
+        if not parent_trace:
+            # No parent trace, skip logging
+            return
         
-        trace = client.trace(
+        span = parent_trace.span(
             name=f"LLM Call: {model_name}",
-            input={"prompt": prompt},
-            output={"completion": completion},
+            input={"prompt": prompt[:200] + "..." if len(prompt) > 200 else prompt},
+            output={"completion": completion[:200] + "..." if len(completion) > 200 else completion},
             metadata={
                 "model": model_name,
                 "latency_ms": latency_ms,
@@ -161,7 +190,7 @@ def log_llm_call(
         else:
             score = 0.4  # Slow
         
-        trace.log_feedback_score(
+        span.log_feedback_score(
             name="response_speed",
             value=score
         )
@@ -180,7 +209,7 @@ def log_story_evaluation(
     metadata: Optional[dict] = None
 ):
     """
-    Log story evaluation results to Opik
+    Log story evaluation as a span under the current trace
     
     Args:
         story_title: Title of the evaluated story
@@ -195,13 +224,16 @@ def log_story_evaluation(
         return
     
     try:
-        client = get_opik_client()
+        parent_trace = get_current_trace()
+        if not parent_trace:
+            # No parent trace, skip logging
+            return
         
-        trace = client.trace(
-            name=f"Story Evaluation: {story_title}",
+        span = parent_trace.span(
+            name=f"Story Evaluation (Iteration {iteration})",
             input={
                 "title": story_title,
-                "content_preview": story_content[:200] + "..."
+                "content_preview": story_content[:200] + "..." if len(story_content) > 200 else story_content
             },
             output={
                 "quality_scores": quality_scores,
@@ -218,19 +250,19 @@ def log_story_evaluation(
         
         # Log individual quality scores as feedback
         for metric_name, score in quality_scores.items():
-            trace.log_feedback_score(
+            span.log_feedback_score(
                 name=metric_name,
                 value=score / 10.0  # Normalize to 0-1
             )
         
         # Log overall score
-        trace.log_feedback_score(
+        span.log_feedback_score(
             name="overall_quality",
             value=overall_score / 100.0  # Normalize to 0-1
         )
         
         # Log approval status
-        trace.log_feedback_score(
+        span.log_feedback_score(
             name="approved",
             value=1.0 if approved else 0.0
         )
@@ -248,7 +280,7 @@ def log_workflow_completion(
     metadata: Optional[dict] = None
 ):
     """
-    Log complete workflow execution to Opik
+    Complete the workflow trace by adding final output and metrics
     
     Args:
         prompt: Original user prompt
@@ -262,33 +294,36 @@ def log_workflow_completion(
         return
     
     try:
-        client = get_opik_client()
+        parent_trace = get_current_trace()
+        if not parent_trace:
+            # No parent trace, skip logging
+            return
         
-        # Create trace for workflow
-        trace = client.trace(
-            name="Story Generation Workflow",
-            input={"prompt": prompt},
-            output={
+        # Update the parent trace with final output
+        end_workflow_trace(
+            output_data={
                 "story_title": final_story.get("title", ""),
+                "story_content": final_story.get("content", "")[:300] + "...",
                 "story_length": len(final_story.get("content", "")),
-                "final_score": final_story.get("overall_score", 0)
+                "final_score": final_story.get("overall_score", 0),
+                "iterations_needed": total_iterations
             },
             metadata={
                 "total_iterations": total_iterations,
                 "total_time_seconds": total_time_seconds,
                 "llm_calls_count": llm_calls_count,
-                "iterations_needed": total_iterations,
+                "length_type": final_story.get("length_type", "unknown"),
                 **(metadata or {})
             }
         )
         
         # Log efficiency metrics
-        trace.log_feedback_score(
+        parent_trace.log_feedback_score(
             name="efficiency",
-            value=1.0 / total_iterations  # Fewer iterations = better
+            value=1.0 / total_iterations if total_iterations > 0 else 1.0
         )
         
-        trace.log_feedback_score(
+        parent_trace.log_feedback_score(
             name="quality",
             value=final_story.get("overall_score", 0) / 100.0
         )
